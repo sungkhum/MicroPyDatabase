@@ -7,11 +7,14 @@ with open("device_test.py") as f:
     exec(f.read(), globals())
 """
 
-import micropydatabase
+import mdb
+import gc
+import time
+
 
 def test_database_open_exception():
     try:
-        db_object = micropydatabase.Database.open("testblahdb")
+        db_object = mdb.Database.open("testblahdb")
     except Exception:
         return 'Success.'
     else:
@@ -19,7 +22,15 @@ def test_database_open_exception():
 
 def test_database_creation():
     try:
-        db_object = micropydatabase.Database.create("testdb")
+        gc.collect()
+        before = gc.mem_free()
+        start_time = time.ticks_ms()
+        db_object = mdb.Database.create("testdb")
+        gc.collect()
+        after = gc.mem_free()
+        end_time = time.ticks_diff(time.ticks_ms(), start_time)
+        print("Database creation took", end_time, "ms to run")
+        print("Database creation took up", before - after, "bytes")
     except Exception:
         return 'Error.'
     else:
@@ -27,7 +38,7 @@ def test_database_creation():
 
 def test_database_creation_exception():
     try:
-        db_object = micropydatabase.Database.create("testdb")
+        db_object = mdb.Database.create("testdb")
     except Exception:
         return 'Success.'
     else:
@@ -35,7 +46,7 @@ def test_database_creation_exception():
 
 def test_table_open_exception():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testblahtable")
     except Exception:
         return 'Success.'
@@ -44,7 +55,7 @@ def test_table_open_exception():
 
 def test_table_creation():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.create_table("testtable", ["name", "password"])
     except Exception:
         return 'Error.'
@@ -53,7 +64,7 @@ def test_table_creation():
 
 def test_table_open():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
     except Exception:
         return 'Error.'
@@ -63,22 +74,70 @@ def test_table_open():
 def test_insert_row():
     i = 1
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        all_memory = []
+        all_time = []
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
         for x in range(550):
+            gc.collect()
+            before = gc.mem_free()
+            start_time = time.ticks_ms()
             db_table.insert({"name": "bob", "password": "coolpassword"})
+            gc.collect()
+            after = gc.mem_free()
+            end_time = time.ticks_diff(time.ticks_ms(), start_time)
+            all_memory.append(before - after)
+            all_time.append(end_time)
             i += 1
     except Exception:
         return 'Error.'
     else:
+        print("Average memory used per insert was", sum(all_memory) / len(all_memory), "bytes.")
+        print("Average time per insert was", sum(all_time) / len(all_time), "ms.")
+        all_time.sort()
+        all_memory.sort()
+        print("Most memory used was", all_memory[-1], "bytes.")
+        print("Longest insert time was", all_time[-1], "ms.")
         return 'Success.'
 
 def test_insert_multiple_rows():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        gc.collect()
+        before = gc.mem_free()
+        start_time = time.ticks_ms()
+        db_object = mdb.Database.open("testdb")
+        gc.collect()
+        after = gc.mem_free()
+        end_time = time.ticks_diff(time.ticks_ms(), start_time)
+        print("Database open took", end_time, "ms to run.")
+        print("Database open took up", before - after, "bytes.")
+        gc.collect()
+        before = gc.mem_free()
+        start_time = time.ticks_ms()
         db_table = db_object.open_table("testtable")
+        gc.collect()
+        after = gc.mem_free()
+        end_time = time.ticks_diff(time.ticks_ms(), start_time)
+        print("Opening table with 550 rows took", end_time, "ms.")
+        print("Opening table with 550 rows took", before - after, "bytes.")
+        gc.collect()
+        before = gc.mem_free()
+        start_time = time.ticks_ms()
         db_table.insert([{"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}])
+        gc.collect()
+        after = gc.mem_free()
+        end_time = time.ticks_diff(time.ticks_ms(), start_time)
+        print("Multi-inserting 28 rows took", end_time, "ms to run.")
+        print("Multi-inserting 28 rows took up", before - after, "bytes.")
+        gc.collect()
+        before = gc.mem_free()
+        start_time = time.ticks_ms()
         db_table.insert([{"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}])
+        gc.collect()
+        after = gc.mem_free()
+        end_time = time.ticks_diff(time.ticks_ms(), start_time)
+        print("Multi-inserting 30 rows took", end_time, "ms to run.")
+        print("Multi-inserting 30 rows took up", before - after, "bytes.")
     except Exception:
         return 'Error.'
     else:
@@ -86,7 +145,7 @@ def test_insert_multiple_rows():
 
 def test_update_row_exception_row():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
         db_table.update_row(1000, {"name": "john"})
     except Exception:
@@ -96,7 +155,7 @@ def test_update_row_exception_row():
 
 def test_update_row_exception_column():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
         db_table.update_row(300, {"what": "john"})
     except Exception:
@@ -106,9 +165,17 @@ def test_update_row_exception_column():
 
 def test_update_row():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
+        gc.collect()
+        before = gc.mem_free()
+        start_time = time.ticks_ms()
         db_table.update_row(300, {"name": "george", "password": "anotherone"})
+        gc.collect()
+        after = gc.mem_free()
+        end_time = time.ticks_diff(time.ticks_ms(), start_time)
+        print("Updating by row id took", end_time, "ms to run.")
+        print("Updating by row id took", before - after, "bytes.")
     except Exception:
         return 'Error.'
     else:
@@ -116,9 +183,17 @@ def test_update_row():
 
 def test_update():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
+        gc.collect()
+        before = gc.mem_free()
+        start_time = time.ticks_ms()
         db_table.update({"name": "george", "password": "anotherone"}, {"name": "sally", "password": "whatisthis"})
+        gc.collect()
+        after = gc.mem_free()
+        end_time = time.ticks_diff(time.ticks_ms(), start_time)
+        print("Updating by query (at row 300) took", end_time, "ms to run.")
+        print("Updating by query (at row 300) took", before - after, "bytes.")
     except Exception:
         return 'Error.'
     else:
@@ -126,7 +201,7 @@ def test_update():
 
 def test_update_exception():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
         db_table.update({"name": "whowhowho", "password": "anotherone"}, {"name": "sally", "password": "whatisthis"})
     except Exception:
@@ -136,9 +211,17 @@ def test_update_exception():
 
 def test_delete_row():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
+        gc.collect()
+        before = gc.mem_free()
+        start_time = time.ticks_ms()
         db_table.delete_row(200)
+        gc.collect()
+        after = gc.mem_free()
+        end_time = time.ticks_diff(time.ticks_ms(), start_time)
+        print("Delete row by row id took", end_time, "ms to run.")
+        print("Delete row by row id took", before - after, "bytes.")
     except Exception:
         return 'Error.'
     else:
@@ -146,7 +229,7 @@ def test_delete_row():
 
 def test_delete_row_exception():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
         db_table.delete_row(3300)
     except Exception:
@@ -156,9 +239,17 @@ def test_delete_row_exception():
 
 def test_delete():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
+        gc.collect()
+        before = gc.mem_free()
+        start_time = time.ticks_ms()
         db_table.delete({"name": "sally", "password": "whatisthis"})
+        gc.collect()
+        after = gc.mem_free()
+        end_time = time.ticks_diff(time.ticks_ms(), start_time)
+        print("Delete by query (at row 300) took", end_time, "ms to run.")
+        print("Delete by query (at row 300) took", before - after, "bytes.")
     except Exception:
         return 'Error.'
     else:
@@ -166,7 +257,7 @@ def test_delete():
 
 def test_delete_exception():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
         db_table.delete({"name": "sallywho", "password": "whatisthis"})
     except Exception:
@@ -176,9 +267,17 @@ def test_delete_exception():
 
 def test_find_row():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
+        gc.collect()
+        before = gc.mem_free()
+        start_time = time.ticks_ms()
         db_table.find_row(150)
+        gc.collect()
+        after = gc.mem_free()
+        end_time = time.ticks_diff(time.ticks_ms(), start_time)
+        print("Find by row id (row 150) took", end_time, "ms to run.")
+        print("Find by row id (row 150) took", before - after, "bytes.")
     except Exception:
         return 'Error.'
     else:
@@ -186,7 +285,7 @@ def test_find_row():
 
 def test_find_row_exception():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
         db_table.find_row(4500)
     except Exception:
@@ -196,24 +295,40 @@ def test_find_row_exception():
 
 def test_query():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
         db_table.update_row(250, {"name": "blah", "password": "something"})
         db_table.update_row(101, {"name": "blah", "password": "something"})
+        gc.collect()
+        before = gc.mem_free()
+        start_time = time.ticks_ms()
         return_list = db_table.query({"name": "blah", "password": "something"})
+        gc.collect()
+        after = gc.mem_free()
+        end_time = time.ticks_diff(time.ticks_ms(), start_time)
+        print("Query with two results (row 101 and 250) took", end_time, "ms to run.")
+        print("Query with two results (row 101 and 250) took", before - after, "bytes.")
     except Exception:
         return 'Error.'
     if len(return_list) == 2:
-    	return 'Success.'
+        return 'Success.'
     
     else:
         return 'Error.'
 
 def test_find():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
+        gc.collect()
+        before = gc.mem_free()
+        start_time = time.ticks_ms()
         db_table.find({"name": "blah", "password": "something"})
+        gc.collect()
+        after = gc.mem_free()
+        end_time = time.ticks_diff(time.ticks_ms(), start_time)
+        print("Find by query (row 101) took", end_time, "ms to run.")
+        print("Find by query (row 101) took", before - after, "bytes.")
     except Exception:
         return 'Error.'
     else:
@@ -221,34 +336,50 @@ def test_find():
 
 def test_scan_no_query():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
         db_table.update_row(1, {"name": "tom", "password": "alright"})
+        gc.collect()
+        before = gc.mem_free()
+        start_time = time.ticks_ms()
         scan_return = db_table.scan()
         the_scan = scan_return.__next__()
+        gc.collect()
+        after = gc.mem_free()
+        end_time = time.ticks_diff(time.ticks_ms(), start_time)
+        print("Scan returning first row took", end_time, "ms to run.")
+        print("Scan returning first row took", before - after, "bytes.")
     except Exception:
         return 'Error.'
     if the_scan['name'] == 'tom':
-    	return 'Success.'
+        return 'Success.'
     else:
         return 'Error.'
 
 def test_scan_with_query():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
+        gc.collect()
+        before = gc.mem_free()
+        start_time = time.ticks_ms()
         scan_return = db_table.scan({"name": "blah", "password": "something"})
         the_scan = scan_return.__next__()
+        gc.collect()
+        after = gc.mem_free()
+        end_time = time.ticks_diff(time.ticks_ms(), start_time)
+        print("Scan with query returning first result (row 101) took", end_time, "ms to run.")
+        print("Scan with query returning first result (row 101) took", before - after, "bytes.")
     except Exception:
         return 'Error.'
     if the_scan['name'] == 'blah':
-    	return 'Success.'
+        return 'Success.'
     else:
         return 'Error.'
 
 #A test to be sure data row files were created correctly.
 def check_data_file_name():
-    location = micropydatabase.os.listdir('testdb/testtable')
+    location = mdb.os.listdir('testdb/testtable')
     #Remove non-data files from our list of dirs.
     location = [element for element in location if 'data' in element]
     #Check we have the correct number of data page files
@@ -279,7 +410,7 @@ def check_current_row():
 
 #A test to make sure the data files have the correct number of rows in the files
 def test_data_files():
-    location = micropydatabase.os.listdir('testdb/testtable')
+    location = mdb.os.listdir('testdb/testtable')
     #Remove non-data files from our list of dirs.
     location = [element for element in location if 'data' in element]
     #Sort as integers so we get them in the right order.
@@ -307,12 +438,12 @@ def test_data_files():
 
 def test_truncate():
     try:
-        db_object = micropydatabase.Database.open("testdb")
+        db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
         db_table.truncate()
     except Exception:
         return 'Error.'
-    for file_name in micropydatabase.os.listdir('testdb/testtable'):
+    for file_name in mdb.os.listdir('testdb/testtable'):
         if file_name[0:4] == 'data':
             return 'Error.'
     else:
@@ -321,12 +452,12 @@ def test_truncate():
 #Clean up all the test data
 def remove_test_database_files():
     try:
-        for file_name in micropydatabase.os.listdir('testdb/testtable'):
-            micropydatabase.os.remove('testdb/testtable/' + file_name)
-        micropydatabase.os.rmdir('testdb/testtable')
-        for file_name in micropydatabase.os.listdir('testdb'):
-            micropydatabase.os.remove('testdb/' + file_name)
-        micropydatabase.os.rmdir('testdb')
+        for file_name in mdb.os.listdir('testdb/testtable'):
+            mdb.os.remove('testdb/testtable/' + file_name)
+        mdb.os.rmdir('testdb/testtable')
+        for file_name in mdb.os.listdir('testdb'):
+            mdb.os.remove('testdb/' + file_name)
+        mdb.os.rmdir('testdb')
     except Exception:
         return 'Failed to delete test data.'
 

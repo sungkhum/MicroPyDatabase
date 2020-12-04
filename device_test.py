@@ -7,7 +7,7 @@ with open("device_test.py") as f:
     exec(f.read(), globals())
 """
 
-import mdb
+import micropydatabase as mdb
 import gc
 import time
 

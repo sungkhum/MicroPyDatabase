@@ -280,7 +280,7 @@ def check_current_row():
     try:
         db_object = Database.open("testdb")
         db_table = db_object.open_table("testtable")
-        current_row = db_table.__calculate_current_row()
+        current_row = db_table.current_row
     except Exception:
         return 'Error.'
     if int(current_row) == 610:

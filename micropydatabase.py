@@ -1,6 +1,7 @@
 """Low-memory json-based databse for MicroPython.
 Data is stored in a folder structure in json for easy inspection.
-Indexing multiple columns is supported, and RAM usage is optimized for embedded systems.
+Indexing multiple columns is supported, and RAM usage is optimized
+for embedded systems.
 Database examples:
 db_object = Database.create("mydb")
 db_object = Database.open("mydb")
@@ -18,11 +19,13 @@ db_table.delete_row(445)
 """
 import json as json
 import os
-import errno as errno
+# import errno as errno
+
 
 class OutOfMemoryError(Exception):
     opt = ''
     msg = ''
+
     def __init__(self, msg, opt=''):
         self.msg = msg
         self.opt = opt
@@ -30,6 +33,7 @@ class OutOfMemoryError(Exception):
 
     def __str__(self):
         return self.msg
+
 
 def file_exists(path):
     try:
@@ -39,6 +43,7 @@ def file_exists(path):
     except OSError:
         exists = False
     return exists
+
 
 def dir_exists(path):
     try:
@@ -51,25 +56,28 @@ def dir_exists(path):
         exists = False
     return exists
 
+
 class Database:
-    def __init__(self, database: str, rows_per_page: int, max_rows: int, storage_format_version: int):
+    def __init__(self, database: str, rows_per_page: int, max_rows: int,
+                 storage_format_version: int):
         self.path = database
         self.rows_per_page = rows_per_page
         self.max_rows = max_rows
         self.storage_format_version = storage_format_version
 
         if not dir_exists(self.path):
-            raise Exception("Sorry, that database not found at " + self.path) 
+            raise Exception("Database not found at " + self.path)
 
     @staticmethod
     def create(database: str, rows_per_page: int = 10, max_rows: int = 10000):
-        #store the current version of the MicroPyDB to prevent future upgrade errors.
+        # store the current version of the MicroPyDB to prevent future upgrade
+        # errors.
         version = 1
-        #Check if database already exists.
+        # Check if database already exists.
         if not dir_exists(database):
             os.mkdir(database)
-            #If database doesn't exist, create the directory structure and the Schema json file with
-            #default values.
+            # If database doesn't exist, create the directory structure and the
+            # Schema json file with default values.
             with open(database + '/schema.json', 'w') as f:
                 data = {
                     "max_rows": max_rows,
@@ -80,11 +88,12 @@ class Database:
                 print('Database \"' + database + '\" created successfully.')
                 return Database(database, rows_per_page, max_rows, version)
         else:
-            raise Exception('Sorry, that database \"' + database + '\" is already in use. Please choose another name.')
+            raise Exception('Database \"' + database + '\" is \
+                            already in use. Please choose another name.')
 
     @staticmethod
     def open(database: str):
-        #Check if database exists.
+        # Check if database exists.
         schema_path = database + '/schema.json'
         if file_exists(schema_path):
             with open(schema_path) as json_file:
@@ -92,33 +101,40 @@ class Database:
                 rows_per_page = data['rows_per_page']
                 max_rows = data['max_rows']
                 storage_format_version = data['storage_format_version']
-                return Database(database, rows_per_page, max_rows, storage_format_version)
+                return Database(database, rows_per_page, max_rows,
+                                storage_format_version)
         else:
-            raise Exception('Sorry, the database, \"' + database + '\" doesn\'t exist. Please try again.')
+            raise Exception('Database, \"' + database + '\" doesn\'t exist.\
+                Please try again.')
 
-    def create_table(self, table: str, columns: list, rows_per_page: int = None, max_rows: int = None):
-        #Convert all column names to lowercase
+    def create_table(self, table: str, columns: list,
+                     rows_per_page: int = None,
+                     max_rows: int = None):
+        # Convert all column names to lowercase
         columns = [element.lower() for element in columns]
         rows_per_page = rows_per_page if rows_per_page is not None else self.rows_per_page
         max_rows = max_rows if max_rows is not None else self.max_rows
-        Table.create_table(self, table.lower(), columns, rows_per_page, max_rows= self.max_rows)
-    
+        Table.create_table(self, table.lower(), columns, rows_per_page,
+                           max_rows=self.max_rows)
+
     def open_table(self, table_name: str):
         return Table.open_table(self, table_name)
-    
-    def list_tables(self)-> list:
+
+    def list_tables(self) -> list:
         """
         Get the list of available tables
         """
         tables_list = []
         for item in os.listdir(self.path):
-            if dir_exists(self.path +"/"+ item):
+            if dir_exists(self.path + "/" + item):
                 tables_list.append(item)
         return tables_list
 
 
 class Table:
-    def __init__(self, database: str, table: str, columns: list, rows_per_page: int, max_rows: int):
+    def __init__(self, database: str, table: str,
+                 columns: list, rows_per_page: int,
+                 max_rows: int):
         self.database = database
         self.name = table.lower()
         self.columns = columns
@@ -127,59 +143,70 @@ class Table:
         self.path = database.path + '/' + table
         self.current_row = self.__calculate_current_row()
 
-        #TODO: validate and self-heal to recover from data corruption
+        # TODO: validate and self-heal to recover from data corruption
 
     @staticmethod
-    def create_table(database, table: str, columns: list, rows_per_page: int = None, max_rows: int = None):
+    def create_table(database, table: str, columns: list,
+                     rows_per_page: int = None, max_rows: int = None):
         """
         Create a table in a database that already exists.
-        Takes string input for table name and a comma seperated list for column names.
+        Takes string input for table name and a comma seperated list
+        for column names.
         """
         # Inherit rows_per_page and max_rows from database metadata
         rows_per_page = int(database.rows_per_page) if rows_per_page is None else rows_per_page
         max_rows = int(database.max_rows) if max_rows is None else max_rows
 
         table_folder = database.path + '/' + table
-        #Check if table already exists, if it doesn't, then proceed, ortherwise throw an error.
+        # Check if table already exists, if it doesn't, then proceed
+        # ortherwise throw an error.
         if not dir_exists(table_folder):
-            #Add our hard-coded meta-ida to the beginning of the column name variable.
-            #columns.insert(0, "meta_id")
-            #create the table json file and populate it.
+            # Add our hard-coded meta-ida to the beginning of the
+            # column name variable.
+            # columns.insert(0, "meta_id")
+            # create the table json file and populate it.
             os.mkdir(table_folder)
 
-            current_row = 0
+            # current_row = 0
             with open(table_folder + '/definition.json', 'w') as f:
                 data = {
                     "settings": {
                         "rows_per_page": rows_per_page,
-                        "max_rows": max_rows,                    
+                        "max_rows": max_rows,
                         },
                     "columns": {}
                 }
                 for x in range(len(columns)):
-                    data["columns"][columns[x]] = {"data_type": "str", "max_length": 10000}
+                    data["columns"][columns[x]] = {"data_type": "str",
+                                                   "max_length": 10000}
                 f.write(json.dumps(data))
                 print('Table \"' + table + '\" created succuessfully.')
 
                 return Table(database, table, columns, rows_per_page, max_rows)
         else:
-            raise Exception('Sorry, the table, \"' + table + '\" already exists. Please choose another name.')
-        
+            raise Exception('Table \"' + table + '\" already exists.\
+                Please choose another name.')
+
     @staticmethod
     def open_table(database, table: str):
         path = database.path + '/' + table
         if dir_exists(path):
             with open(path + '/definition.json') as json_file:
                 definition = json.load(json_file)
-            #Check to make sure there are not any temporary files left over from previous session.
+            # Check to make sure there are not any temporary files left over
+            # from previous session.
             for file_name in os.listdir(path):
                 if file_name[-4:] in ['temp', 'vacu']:
-                    raise Exception("Some temporary data page files are still in your table.")
-            return Table(database, table, definition['columns'], definition['settings']['rows_per_page'], definition['settings']['max_rows'])
+                    raise Exception("Some temporary data page files are\
+                    still in your table.")
+            return Table(database, table, definition['columns'],
+                         definition['settings']['rows_per_page'],
+                         definition['settings']['max_rows'])
         else:
-            raise Exception('Sorry, the table, \"' + table + '\" does not exist in the database \"' + database.path + '\". Please try again.')
-    
-    def stats(self)-> dict:
+            raise Exception('Table \"' + table + '\" does not exist in\
+            database \"' + database.path + '\". Please try again.')
+
+    def stats(self) -> dict:
         with open(self.path + '/definition.json') as json_file:
             definition = json.load(json_file)
         return {
@@ -189,44 +216,46 @@ class Table:
             "Current_row": self.__calculate_current_row()
         }
 
-    def insert(self, data: dict )-> bool:
+    def insert(self, data: dict) -> bool:
         """
         Inserts new data in a table
         """
-        #Check for multiple row insert and prepare for each
+        # Check for multiple row insert and prepare for each
         if isinstance(data, list):
-            i = 0
+            # i = 0
             total = len(data) - 1
             static_total = total
             new_data = data
-            multi = True
-            inserted = 0
+            # multi = True
+            # inserted = 0
             for x in range(len(new_data)):
                 if self.__scrub_data(new_data[x]):
                     pass
                 else:
                     raise Exception('Your insert data is not formatted correctly.')
 
-            #while we still have data to insert
+            # while we still have data to insert
             while total > 0:
                 current_line = self.__row_id_in_file(self.current_row)
-                #calculate how many lines we will insert on the first loop
+                # calculate how many lines we will insert on the first loop
                 insert_number = int(self.rows_per_page) - int(current_line)
                 if insert_number == 0:
                     insert_number = int(self.rows_per_page)
-                #Check that we aren't at max rows:
+                # Check that we aren't at max rows:
                 if self.current_row + insert_number > self.max_rows:
-                    raise Exception('Sorry, the table, \"' + self.name + '\" can\'t fit all those rows.')
-                #populate first_data based on how many total rows are being inserted and how much room is on data page
+                    raise Exception('Table \"' + self.name + '\" \
+                    can\'t fit all those rows.')
+                # populate first_data based on how many total rows are being
+                # inserted and how much room is on data page
                 if insert_number < total:
-                    #grab how many we need to fill the current data page
+                    # grab how many we need to fill the current data page
                     first_data = data[:insert_number]
                     del data[:insert_number]
                 else:
                     first_data = data
-                #record how many rows we are inserting this time:
+                # record how many rows we are inserting this time:
                 number_rows_to_insert = len(first_data)
-                #prepare data
+                # prepare data
                 first_data_string = ''
                 first_path = self.__data_file_for_row_id(int(self.current_row) + 1)
                 for x in range(len(first_data)):
@@ -236,19 +265,21 @@ class Table:
                     if self.__check_write_success_multi_insert(first_data_string, first_path, number_rows_to_insert, current_line):
                         pass
                     else:
-                        raise Exception("There was a problem validating the write during multiple row insert.")
+                        raise Exception("There was a problem validating the\
+                            write during multiple row insert.")
                 else:
-                    raise Exception("There was a problem inserting multiple rows.")
+                    raise Exception("There was a problem inserting\
+                        multiple rows.")
                 total -= insert_number
             print(str(static_total) + ' rows have been added.')
             return True
-        #If not multi-insert
+        # If not multi-insert
         else:
             if self.__scrub_data(data):
                 self.current_row += 1
                 row_id = self.current_row
                 path = self.__data_file_for_row_id(row_id)
-                #Check that we aren't at max rows:
+                # Check that we aren't at max rows:
                 if self.current_row < self.max_rows:
                     if self.__insert_modify_data_file(path, data):
                         print('Row ' + str(row_id) + ' has been added.')
@@ -256,21 +287,22 @@ class Table:
                     else:
                         raise Exception('There was a problem inserting row at ' + str(row_id) +'.')
                 else:
-                    raise Exception('Sorry, the table, \"' + self.name + '\" is full.')
+                    raise Exception('Table \"' + self.name + '\" is full.')
             else:
-                raise Exception('Sorry, the data you tried to insert is invalid.')
+                raise Exception('Data you tried to insert is invalid.')
 
     def update(self, query_conditions: dict, data: dict):
         """
         Update data based on matched query
         """
         matched_queries = self.__return_query('query', query_conditions)
-        if matched_queries == None:
-            raise Exception('Sorry, your query did not match any data.')
+        if matched_queries is None:
+            raise Exception('Query did not match any data.')
         else:
-            #Loop through and update each row where the query returned true
+            # Loop through and update each row where the query returned true
             for found_row in matched_queries:
-                #Check to make sure all the column names given by user match the column names in the table.
+                # Check to make sure all the column names given by user
+                # match the column names in the table.
                 row_id = found_row['row_id']
                 self.update_row(row_id, data)
 
@@ -278,27 +310,28 @@ class Table:
         """
         Update data based on row_id.
         """
-        #Check to make sure all the column names given by user match the column names in the table.
+        # Check to make sure all the column names given by user
+        # match the column names in the table.
         data = self.__scrub_data(update_data)
         path = self.__data_file_for_row_id(row_id)
         if data:
-            #Create a temp data file with the updated row data.
+            # Create a temp data file with the updated row data.
             if self.__modify_data_file(path, {row_id: data}, 'update'):
-                print('Row ' + str(row_id) + ' has been updated.')            
+                print('Row ' + str(row_id) + ' has been updated.')
             else:
-                raise Exception('There was a problem updating row at ' + str(row_id) +'.')
+                raise Exception('There was a problem updating row at ' + str(row_id) + '.')
         else:
-            raise Exception('Sorry, the data you tried to insert is invalid.')
+            raise Exception('Data you tried to insert is invalid.')
 
-    def delete(self, query_conditions: dict)-> bool:
+    def delete(self, query_conditions: dict) -> bool:
         """
         Delete row based on query search.
         """
         matched_queries = self.__return_query('query', query_conditions)
-        if matched_queries == None:
-            raise Exception('Sorry, your query did not match any data.')
+        if matched_queries is None:
+            raise Exception('Query did not match any data.')
         else:
-            #Loop through and update each row where the query returned true
+            # Loop through and update each row where the query returned true
             for found_row in matched_queries:
                 row_id = found_row['row_id']
                 self.delete_row(row_id)
@@ -308,10 +341,11 @@ class Table:
         """
         Delete data based on row_id.
         """
-        if self.__modify_data_file(self.__data_file_for_row_id(row_id), {row_id: None}, 'delete'):        
+        if self.__modify_data_file(self.__data_file_for_row_id(row_id),
+                                   {row_id: None}, 'delete'):
             print('Row ' + str(row_id) + ' has been deleted.')
         else:
-            raise Exception('There was a problem deleting row at ' + str(row_id) +'.')
+            raise Exception('There was a problem deleting row at ' + str(row_id) + '.')
 
     def truncate(self):
         """
@@ -324,12 +358,12 @@ class Table:
 
     def find_row(self, row_id: int):
         """
-        Find data based on row_id.        
+        Find data based on row_id.
         """
-        #Calculate what line in the file the row_id will be found at
+        # Calculate what line in the file the row_id will be found at
         looking_for_line = self.__row_id_in_file(row_id)
 
-        #Initiate line-counter
+        # Initiate line-counter
         current_line = 1
         with open(self.__data_file_for_row_id(row_id), 'r') as f:
             for line in f:
@@ -341,12 +375,12 @@ class Table:
 
     def query(self, queries: dict):
         """
-        Search through the whole table and return all rows where column data matches
-        searched for value.
+        Search through the whole table and return all rows where column
+        data matches searched for value.
         """
         final_result = []
         results = self.__return_query('query', queries)
-        if results == None:
+        if results is None:
             return None
         else:
             if len(results) > 1:
@@ -358,8 +392,8 @@ class Table:
 
     def find(self, queries: dict):
         """
-        Search through the whole table and return first row where column data matches
-        searched for value.
+        Search through the whole table and return first row where column
+        data matches searched for value.
         """
         return self.__return_query('find', queries)
 
@@ -370,9 +404,10 @@ class Table:
         if queries:
             queries = self.__scrub_data(queries)
         location = os.listdir(self.path)
-        #Remove non-data files from our list of dirs.
+        # Remove non-data files from our list of dirs.
         location = [element for element in location if 'data' in element]
-        #Sort as integers so we get them in the right order (not reversed because we want smallest first).
+        # Sort as integers so we get them in the right order
+        # (not reversed because we want smallest first).
         location = sorted(location, key=lambda x: int(x.split('.')[0].split('_')[1]))
         found = False
         while True:
@@ -380,7 +415,7 @@ class Table:
                 with open(self.path + '/' + f, 'r') as data:
                     for line in data:
                         current_data = json.loads(line)
-                        #If we are not searching for anything
+                        # If we are not searching for anything
                         if not queries:
                             yield current_data['data']
                         else:
@@ -396,10 +431,12 @@ class Table:
 
     def vacuum(self) -> bool:
         location = os.listdir(self.path)
-        #Remove non-data files from our list of dirs.
+        # Remove non-data files from our list of dirs.
         location = [element for element in location if 'data' in element]
-        #Sort as integers so we get them in the right order.
-        location = sorted(location, key=lambda x: int(x.split('.')[0].split('_')[1]), reverse = False)
+        # Sort as integers so we get them in the right order.
+        location = sorted(location,
+                          key=lambda x: int(x.split('.')[0].split('_')[1]),
+                          reverse=False)
         for f in location:
             os.rename(self.path + '/' + f, self.path + '/' + f + '.vacu')
         # Reset row id counter
@@ -415,37 +452,39 @@ class Table:
             os.remove(self.path + '/' + f + '.vacu')
         return True
 
-    def __return_query(self, search_type: str, queries: dict = None)-> list:
+    def __return_query(self, search_type: str, queries: dict = None) -> list:
         """
         Helper function to process a query and return the result.
         """
         if queries:
             queries = self.__scrub_data(queries, False)
-        
+
         for query in queries:
             if type(queries[query]) is not list:
-                queries[query] = [ queries[query] ]
-        
+                queries[query] = [queries[query]]
+
         # different handling logic must be performed if there are mutiple keys
         multiple_keys = True if len(list(queries.keys())) > 1 else False
 
-
         result = []
         location = os.listdir(self.path)
-        #Remove non-data files from our list of dirs.
+        # Remove non-data files from our list of dirs.
         location = [element for element in location if 'data' in element]
-        #Sort as integers so we get them in the right order.
-        location = sorted(location, key=lambda x: int(x.split('.')[0].split('_')[1]), reverse = True)
+        # Sort as integers so we get them in the right order.
+        location = sorted(location,
+                          key=lambda x: int(x.split('.')[0].split('_')[1]),
+                          reverse=True)
         found = False
         for f in location:
             with open(self.path + '/' + f, 'r') as data:
                 for line in data:
-                    #Make sure the line isn't blank (ex. if it was deleted).
+                    # Make sure the line isn't blank (ex. if it was deleted).
                     if line != '\n':
                         found = False
-                        current_data = json.loads(line)
+                        cur_data = json.loads(line)
                         for query in queries:
-                            if query in current_data['data'].keys() and current_data['data'][query] in queries[query]:
+                            if query in cur_data['data'].keys() \
+                                    and cur_data['data'][query] in queries[query]:
                                 found = True
                                 if not multiple_keys:
                                     break
@@ -455,9 +494,9 @@ class Table:
                                     break
                         if found:
                             if search_type == 'find':
-                                return current_data['data']
+                                return cur_data['data']
                             elif search_type == 'query':
-                                result.append(current_data)
+                                result.append(cur_data)
                     # else:
                     #     break
         if result:
@@ -465,57 +504,60 @@ class Table:
         else:
             return None
 
-    def __check_write_success(self, data, page: str, method: str)-> bool:
+    def __check_write_success(self, data, page: str, method: str) -> bool:
         """
         Checks to make sure the previous update or delete was successful.
         """
-        #Initiate line-counter
+        # Initiate line-counter
         current_line = 1
-        #Calculate what line will have the row we are looking for.
+        # Calculate what line will have the row we are looking for.
         looking_for_line = self.__row_id_in_file(list(data)[0])
         row_id = list(data)[0]
-        #open file at path
+        # open file at path
         with open(page, 'r') as f:
             for line in f:
                 if current_line == looking_for_line:
                     if method == 'update':
-                        if json.loads(line)['row_id'] == row_id and json.loads(line)['data'] == data[row_id]:
+                        if json.loads(line)['row_id'] == row_id \
+                                and json.loads(line)['data'] == data[row_id]:
                             return True
                     elif method == 'delete':
                         if line == '\n':
                             return True
                 current_line += 1
-        #There was a problem writing, so return false
+        # There was a problem writing, so return false
         return False
 
     def __check_write_success_insert(self, data: dict, page: str):
         """
         Checks to make sure the previous insert was successful.
         """
-        last_line= None
+        last_line = None
         with open(page, 'r') as f:
             for line in f:
                 if len(line) > 1:
                     last_line = line
             if last_line:
-                if data["row_id"] == json.loads(last_line)["row_id"] and data["data"] == json.loads(last_line)["data"]:
+                if data["row_id"] == json.loads(last_line)["row_id"]\
+                        and data["data"] == json.loads(last_line)["data"]:
                     return True
         return False
 
-    def __check_write_success_multi_insert(self, data: dict, page: str, rows_added: int, start_line: int)-> bool:
+    def __check_write_success_multi_insert(self, data: dict, page: str,
+                                           rows_added: int, start_line: int)-> bool:
         """
         Checks to make sure the previous insert was successful.
         """
         line_counter = 1
-        #if we were at the end of a data page, then start at the first line of the file
+        # if we were at the end of a data page, then start at the first line of the file
         if int(start_line) == int(self.rows_per_page):
             start_line = 0
         temp_data = ''
         with open(page, 'r') as f:
             for line in f:
-                #check if we are past the line we started the insert at in the data page
+                # check if we are past the line we started the insert at in the data page
                 if line_counter > start_line:
-                    #If we are, then add the line to our temp_data so we can compare it with the data insert
+                    # If we are, then add the line to our temp_data so we can compare it with the data insert
                     temp_data = str(temp_data) + str(line)
                 line_counter += 1
         if temp_data == data:
@@ -526,13 +568,13 @@ class Table:
         """
         This function assumes the data has already been scrubbed!
         """
-        #Write the row to the data page file ('a' positions the stream at the end of the file).
-        temp_current_row = self.current_row
+        # Write the row to the data page file ('a' positions the stream at the end of the file).
+        # temp_current_row = self.current_row
         with open(page, 'a+') as f:
             f.write(data)
-        #if self.__check_write_success_insert(new_data, path):
+        # if self.__check_write_success_insert(new_data, path):
         #    return True
-        #else:
+        # else:
         #    print('Data was corrupted at row: ' + temp_current_row)
         #    return False
         return True
@@ -541,10 +583,10 @@ class Table:
         """
         This function assumes the data has already been scrubbed!
         """
-        #Write the row to the data page file ('a' positions the stream at the end of the file).
+        # Write the row to the data page file ('a' positions the stream at the end of the file).
         temp_current_row = self.current_row
         with open(page, 'a+') as f:
-            new_data = { "row_id": temp_current_row, "data": data }
+            new_data = {"row_id": temp_current_row, "data": data}
             f.write(json.dumps(new_data))
             f.write('\n')
         if self.__check_write_success_insert(new_data, page):
@@ -558,12 +600,14 @@ class Table:
         We don't want to write table metadata to disk every insert, 
         so just find it when we open the table and keep it in memory.
         """
-        last_data_file = None
+        # last_data_file = None
         location = os.listdir(self.path)
-        #Remove non-data files from our list of dirs.
+        # Remove non-data files from our list of dirs.
         location = [element for element in location if 'data' in element]
-        #Sort as integers so we get them in the right order.
-        location = sorted(location, key=lambda x: int(x.split('.')[0].split('_')[1]), reverse = True)
+        # Sort as integers so we get them in the right order.
+        location = sorted(location,
+                          key=lambda x: int(x.split('.')[0].split('_')[1]),
+                          reverse=True)
         for f in location:
             if f[0:4] == 'data':
                 last_line = None
@@ -573,10 +617,10 @@ class Table:
                             last_line = line
                 if last_line:
                     return json.loads(last_line)['row_id']
-
         return 0
-    
-    def __insert_modify_data_file(self, page: str, data: dict = None, fast: bool = True):
+
+    def __insert_modify_data_file(self, page: str, data: dict = None,
+                                  fast: bool = True):
         """
         Insert data page write helper
         """
@@ -585,17 +629,17 @@ class Table:
                 return True
         else:
             # not recomended, becouse its heavy on flash storage!
-            #First we copy the data page file to a temp file if the data page file exists
+            # First we copy the data page file to a temp file
+            # if the data page file exists
             temp_path = page + '.temp'
-            piece_size = 512 # 512 bytes at a time
+            piece_size = 512    # 512 bytes at a time
             if file_exists(page):
-                with open(page, 'rb') as in_file, open(temp_path, 'wb') as out_file:
+                with open(page, 'rb') as in_file,\
+                        open(temp_path, 'wb') as out_file:
                     while True:
                         piece = in_file.read(piece_size)
-                
                         if piece == b'':
-                            break # end of file
-        
+                            break    # end of file
                         out_file.write(piece)
 
             elif not file_exists(page):
@@ -608,18 +652,17 @@ class Table:
                         os.remove(page)
                 except:
                     pass
-
                 os.rename(temp_path, page)
         return True
 
     def __modify_data_file(self, path: str, update_data, action: str):
         """
-        Creates a duplicate of a data file in the same path and appends ".temp". 
-        You also can specify whether or not to replace certain rows with new data.
-        update_data = {334: {name: John}} will update the "name" field of row 334
-        update_data = {334: None} will delete row 334
+        Creates a duplicate of a data file in the same path and appends
+        ".temp". You also can specify whether or not to replace certain rows
+        with new data. update_data = {334: {name: John}} will update the
+        "name" field of row 334 update_data = {334: None} will delete row 334
         """
-        #Check that data page file exists
+        # Check that data page file exists
         if not file_exists(path):
             raise Exception('Cannot ' + action + ' a row that does not exist.')
 
@@ -628,47 +671,53 @@ class Table:
         current_data = ''
         current_line = 1
         file_row_offset = ''
-        #Calculate the row offset for current data page file
+        # Calculate the row offset for current data page file
         for number in path.split('/')[-1][4:]:
             if number in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
                 file_row_offset = str(file_row_offset) + str(number)
             else:
                 break
         file_row_offset = int(file_row_offset) - 1
-        #Open the master data page file
+        # Open the master data page file
         with open(path, 'r') as input_file:
-            #Create a temporary data page file
+            # Create a temporary data page file
             with open(temp_path, 'w') as output:
                 for line in input_file:
                     current_row_id = current_line + file_row_offset
-                    #If we are at the row we need to modify
-                    if current_row_id in update_data: 
-                        #If we are deleting a row:
+                    # If we are at the row we need to modify
+                    if current_row_id in update_data:
+                        # If we are deleting a row:
                         if action == 'delete':
                             output.write('\n')
                             wrote_to_file = True
-                        #If we are updating a row:
+                        # If we are updating a row:
                         else:
                             current_data = json.loads(line)
                             if current_data['row_id'] == current_row_id:
-                                #Find a match for the column name the user wants to update with new data.
+                                # Find a match for the column name the user
+                                # wants to update with new data.
                                 for x in current_data['data']:
                                     for y in update_data[current_row_id]:
-                                        #If the column the user specified equals the column in the current data
+                                        # If the column the user specified
+                                        # equals the column in the current data
                                         if y == x:
-                                            #Then update the data with new user input
+                                            # Then update the data with new
+                                            # user input
                                             current_data['data'][x] = update_data[current_row_id][y]
-                                #and write to temp file
+                                # and write to temp file
                                 output.write(json.dumps(current_data))
                                 output.write('\n')
                                 wrote_to_file = True
                             else:
-                                raise Exception("Woah we thought " + line + " was row_id " + current_row_id + " and almost stomped the wrong row's data!")
-                    #Else we are not at the row we are updating, so just copy the previous data to the temp file.
+                                raise Exception("Woah we thought " + line +\
+                                            " was row_id " + current_row_id + " and almost stomped the wrong row's data!")
+                    # Else we are not at the row we are updating, so just copy
+                    # the previous data to the temp file.
                     else:
                         output.write(line)
                     current_line += 1
-        #If we performed an update, check to make sure we actually wrote the update to the temp file
+        # If we performed an update, check to make sure we actually wrote
+        # the update to the temp file
         if wrote_to_file:
             if self.__check_write_success(update_data, temp_path, action):
                 os.remove(path)
@@ -678,54 +727,62 @@ class Table:
                 return False
 
     def __data_file_for_row_id(self, row_id: int):
-        """Calculate what data file we are currently in and return the path to that file."""
+        """
+        Calculate what data file we are currently in and return the path
+        to that file.
+        """
         file_row_id = int(row_id) % int(self.rows_per_page)
         if file_row_id == 0:
-            second_number = (int(row_id) // int(self.rows_per_page)) * int(self.rows_per_page)
+            second_number = (int(row_id) // int(self.rows_per_page)) *\
+                int(self.rows_per_page)
             first_number = second_number - int(self.rows_per_page) + 1
         else:
-            first_number = (int(row_id) // int(self.rows_per_page)) * int(self.rows_per_page) + 1
+            first_number = (int(row_id) // int(self.rows_per_page)) *\
+                int(self.rows_per_page) + 1
             second_number = first_number + int(self.rows_per_page) - 1
-        path = self.path + '/data' + str(first_number) + '_' + str(second_number) + '.dat'
+        path = self.path + '/data' + str(first_number) +\
+            '_' + str(second_number) + '.dat'
         return path
 
     def __row_id_in_file(self, row_id: int):
         """
         Calculates the line in a data page file that row will be found at.
         """
-        #if our table doesn't have any rows yet
+        # if our table doesn't have any rows yet
         if row_id == 0:
             return 0
         else:
             file_row_id = int(row_id) % int(self.rows_per_page)
             if file_row_id == 0:
-                file_row_id =  int(file_row_id) + int(self.rows_per_page)
+                file_row_id = int(file_row_id) + int(self.rows_per_page)
             return file_row_id
 
     def __scrub_data(self, data: dict, fill_missing: bool = True):
         """
-        Check to see if user data input contains valid column data for current table.
+        Check to see if user data input contains valid column data for
+        current table.
         a) Validates column names actually exist in table
         b) Fills in null values for missing columns.
         c) Downcases column names.
         """
         all_columns = list(self.columns.keys())
-        
         result = {}
         column = None
         try:
             for column, value in data.items():
                 column = column.lower()
-                column_definition = self.columns[column]
-                #TODO: validate type/length/etc
+                # column_definition = self.columns[column]
+                # TODO: validate type/length/etc
                 all_columns.remove(column)
                 result[column] = value
         except KeyError:
-            raise Exception('Sorry, the column, \"' + column + '\" doesn\'t exist in the table, \"' + self.name + '\".')
-        
-        #now add default values
+            raise Exception('Column \"' + column + '\" doesn\'t exist in the\
+                            table \"' + self.name + '\".')
+
+        # now add default values
         if fill_missing:
             for lefover_column in all_columns:
                 result[lefover_column] = None
 
         return result
+

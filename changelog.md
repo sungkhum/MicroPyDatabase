@@ -1,4 +1,12 @@
 # Changelog#
+
+## 2021-10-18 ##
+> Breaking changes!
+* Shaved 8 bytes from each line in database, by changing `data` and `row_id` to `d` and `r`. This is incompatible with already existing data files.
+* Added database method `Database.exist("database_name")` for easy check.
+* changed string concatenation to use `format()` function, to save RAM.
+* Shortened exception texts.
+
 ## 2020-12-05 ##
 
 * Fixed method `Table.__return_query` so now querying by `tbl.query({"name": "Bob"})` works correctly. Expanded capability (read bellow). Backward compatibility left. **Note**: Value strings are Case Sensitive!

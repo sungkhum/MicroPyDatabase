@@ -10,8 +10,10 @@ with open("device_test.py") as f:
 import micropydatabase as mdb
 import gc
 import time
+import sys
 
-UC = False    # device is microcontroller
+# Is device microcontroller
+uC = True if sys.platform not in ("unix", "linux", "win32") else False
 
 
 def test_database_open_exception():
@@ -26,12 +28,12 @@ def test_database_open_exception():
 def test_database_creation():
     try:
         gc.collect()
-        if UC:
+        if uC:
             before = gc.mem_free()
             start_time = time.ticks_ms()
         mdb.Database.create("testdb")
         gc.collect()
-        if UC:
+        if uC:
             after = gc.mem_free()
             end_time = time.ticks_diff(time.ticks_ms(), start_time)
             print("Database creation took", end_time, "ms to run")
@@ -89,12 +91,12 @@ def test_insert_row():
         db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
         for x in range(550):
-            if UC:
+            if uC:
                 gc.collect()
                 before = gc.mem_free()
                 start_time = time.ticks_ms()
             db_table.insert({"name": "bob", "password": "coolpassword"})
-            if UC:
+            if uC:
                 gc.collect()
                 after = gc.mem_free()
                 end_time = time.ticks_diff(time.ticks_ms(), start_time)
@@ -104,7 +106,7 @@ def test_insert_row():
     except Exception:
         return 'Error.'
     else:
-        if UC:
+        if uC:
             print("Average memory used per insert was",
                   sum(all_memory) / len(all_memory), "bytes.")
             print("Average time per insert was",
@@ -118,12 +120,12 @@ def test_insert_row():
 
 def test_insert_multiple_rows():
     try:
-        if UC:
+        if uC:
             gc.collect()
             before = gc.mem_free()
             start_time = time.ticks_ms()
         db_object = mdb.Database.open("testdb")
-        if UC:
+        if uC:
             gc.collect()
             after = gc.mem_free()
             end_time = time.ticks_diff(time.ticks_ms(), start_time)
@@ -133,7 +135,7 @@ def test_insert_multiple_rows():
             before = gc.mem_free()
             start_time = time.ticks_ms()
         db_table = db_object.open_table("testtable")
-        if UC:
+        if uC:
             gc.collect()
             after = gc.mem_free()
             end_time = time.ticks_diff(time.ticks_ms(), start_time)
@@ -171,7 +173,7 @@ def test_insert_multiple_rows():
                          {"name": "whothere", "password": "ohyeah"},
                          {"name": "whothere", "password": "ohyeah"},
                          {"name": "whothere", "password": "ohyeah"}])
-        if UC:
+        if uC:
             gc.collect()
             after = gc.mem_free()
             end_time = time.ticks_diff(time.ticks_ms(), start_time)
@@ -211,7 +213,7 @@ def test_insert_multiple_rows():
                          {"name": "whothere", "password": "ohyeah"},
                          {"name": "whothere", "password": "ohyeah"},
                          {"name": "whothere", "password": "ohyeah"}])
-        if UC:
+        if uC:
             gc.collect()
             after = gc.mem_free()
             end_time = time.ticks_diff(time.ticks_ms(), start_time)
@@ -249,12 +251,12 @@ def test_update_row():
     try:
         db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
-        if UC:
+        if uC:
             gc.collect()
             before = gc.mem_free()
             start_time = time.ticks_ms()
         db_table.update_row(300, {"name": "george", "password": "anotherone"})
-        if UC:
+        if uC:
             gc.collect()
             after = gc.mem_free()
             end_time = time.ticks_diff(time.ticks_ms(), start_time)
@@ -270,13 +272,13 @@ def test_update():
     try:
         db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
-        if UC:
+        if uC:
             gc.collect()
             before = gc.mem_free()
             start_time = time.ticks_ms()
         db_table.update({"name": "george", "password": "anotherone"},
                         {"name": "sally", "password": "whatisthis"})
-        if UC:
+        if uC:
             gc.collect()
             after = gc.mem_free()
             end_time = time.ticks_diff(time.ticks_ms(), start_time)
@@ -306,12 +308,12 @@ def test_delete_row():
     try:
         db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
-        if UC:
+        if uC:
             gc.collect()
             before = gc.mem_free()
             start_time = time.ticks_ms()
         db_table.delete_row(200)
-        if UC:
+        if uC:
             gc.collect()
             after = gc.mem_free()
             end_time = time.ticks_diff(time.ticks_ms(), start_time)
@@ -338,12 +340,12 @@ def test_delete():
     try:
         db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
-        if UC:
+        if uC:
             gc.collect()
             before = gc.mem_free()
             start_time = time.ticks_ms()
         db_table.delete({"name": "sally", "password": "whatisthis"})
-        if UC:
+        if uC:
             gc.collect()
             after = gc.mem_free()
             end_time = time.ticks_diff(time.ticks_ms(), start_time)
@@ -370,12 +372,12 @@ def test_find_row():
     try:
         db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
-        if UC:
+        if uC:
             gc.collect()
             before = gc.mem_free()
             start_time = time.ticks_ms()
         db_table.find_row(150)
-        if UC:
+        if uC:
             gc.collect()
             after = gc.mem_free()
             end_time = time.ticks_diff(time.ticks_ms(), start_time)
@@ -404,12 +406,12 @@ def test_query():
         db_table = db_object.open_table("testtable")
         db_table.update_row(250, {"name": "blah", "password": "something"})
         db_table.update_row(101, {"name": "blah", "password": "something"})
-        if UC:
+        if uC:
             gc.collect()
             before = gc.mem_free()
             start_time = time.ticks_ms()
         return_list = db_table.query({"name": "blah", "password": "something"})
-        if UC:
+        if uC:
             gc.collect()
             after = gc.mem_free()
             end_time = time.ticks_diff(time.ticks_ms(), start_time)
@@ -429,12 +431,12 @@ def test_find():
     try:
         db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
-        if UC:
+        if uC:
             gc.collect()
             before = gc.mem_free()
             start_time = time.ticks_ms()
         db_table.find({"name": "blah", "password": "something"})
-        if UC:
+        if uC:
             gc.collect()
             after = gc.mem_free()
             end_time = time.ticks_diff(time.ticks_ms(), start_time)
@@ -451,13 +453,13 @@ def test_scan_no_query():
         db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
         db_table.update_row(1, {"name": "tom", "password": "alright"})
-        if UC:
+        if uC:
             gc.collect()
             before = gc.mem_free()
             start_time = time.ticks_ms()
         scan_return = db_table.scan()
         the_scan = scan_return.__next__()
-        if UC:
+        if uC:
             gc.collect()
             after = gc.mem_free()
             end_time = time.ticks_diff(time.ticks_ms(), start_time)
@@ -475,13 +477,13 @@ def test_scan_with_query():
     try:
         db_object = mdb.Database.open("testdb")
         db_table = db_object.open_table("testtable")
-        if UC:
+        if uC:
             gc.collect()
             before = gc.mem_free()
             start_time = time.ticks_ms()
         scan_return = db_table.scan({"name": "blah", "password": "something"})
         the_scan = scan_return.__next__()
-        if UC:
+        if uC:
             gc.collect()
             after = gc.mem_free()
             end_time = time.ticks_diff(time.ticks_ms(), start_time)

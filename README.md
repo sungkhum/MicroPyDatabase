@@ -112,7 +112,7 @@ db_table.insert([{"name": "whothere", "password": "ohyeah"}, {"name": "whothere"
 db_table.find_row(5)
 db_table.update_row(300, {'name': 'bob'})
 db_table.delete_row(445)
-db_table.find_by_column_value("name", "bob")
+db_table.query({"name": "bob"})
 f = db_table.scan()
 f.__next__()
 

@@ -34,57 +34,57 @@ db_table = db_object.create_table("mytable", ["name", "password"])
 Insert data into table:
 ```
 db_object = micropydatabase.Database.open("mydb")
-db_table = db_object.open_table("mytable"])
+db_table = db_object.open_table("mytable")
 db_table.insert({"name": "lucy", "password": "coolpassword"})
 ```
 Multi-insert data into table:
 ```
 db_object = micropydatabase.Database.open("mydb")
-db_table = db_object.open_table("mytable"])
+db_table = db_object.open_table("mytable")
 db_table.insert([{"name": "john", "password": "apassword"}, {"name": "john", "password": "apassword"}, {"name": "bob", "password": "thispassword"}, {"name": "sally", "password": "anotherpassword"}])
 ```
 Find (returns first result):
 ```
 db_object = micropydatabase.Database.open("mydb")
-db_table = db_object.open_table("mytable"])
+db_table = db_object.open_table("mytable")
 db_table.find({"name": "john", "password": "apassword"})
 ```
 Query (returns all results):
 ```
 db_object = micropydatabase.Database.open("mydb")
-db_table = db_object.open_table("mytable"])
+db_table = db_object.open_table("mytable")
 db_table.query({"name": "john", "password": "apassword"})
 ```
 Update Row (search query, updated row data):
 ```
 db_object = micropydatabase.Database.open("mydb")
-db_table = db_object.open_table("mytable"])
+db_table = db_object.open_table("mytable")
 db_table.update({"name": "bob", "password": "thispassword"}, {"name": "george", "password": "somethingelse"})
 ```
 Delete Row:
 ```
 db_object = micropydatabase.Database.open("mydb")
-db_table = db_object.open_table("mytable"])
+db_table = db_object.open_table("mytable")
 db_table.delete({"name": "george", "password": "somethingelse"})
 ```
 Scan (iterate through each row in table):
 ```
 db_object = micropydatabase.Database.open("mydb")
-db_table = db_object.open_table("mytable"])
+db_table = db_object.open_table("mytable")
 f = db_table.scan()
 f.__next__()
 ```
 Scan with Query (iterate through rows that match query):
 ```
 db_object = micropydatabase.Database.open("mydb")
-db_table = db_object.open_table("mytable"])
+db_table = db_object.open_table("mytable")
 f = db_table.scan({"name": "john", "password": "apassword"})
 f.__next__()
 ```
 Truncate Table (delete all table contents):
 ```
 db_object = micropydatabase.Database.open("mydb")
-db_table = db_object.open_table("mytable"])
+db_table = db_object.open_table("mytable")
 db_table.truncate()
 ```
 

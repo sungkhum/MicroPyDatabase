@@ -481,7 +481,7 @@ class Table:
                                     break
                         if found:
                             if search_type == 'find':
-                                return cur_data['data']
+                                return cur_data['d']
                             elif search_type == 'query':
                                 result.append(cur_data)
                     # else:

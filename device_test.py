@@ -350,7 +350,8 @@ def test_delete():
             after = gc.mem_free()
             end_time = time.ticks_diff(time.ticks_ms(), start_time)
             print("Delete by query (at row 300) took", end_time, "ms to run.")
-            print("Delete by query (at row 300) took", before - after, "bytes.")
+            print("Delete by query (at row 300) took", before - after,
+                  "bytes.")
     except Exception:
         return 'Error.'
     else:
@@ -514,7 +515,7 @@ def check_data_file_name():
                       key=lambda x: int(x.split('.')[0].split('_')[1]),
                       reverse=True)
     for f in location:
-        if f in ['data551_560.dat', 'data1_10.dat', 'data11_20.dat',
+        if f in ['data1_10.dat', 'data11_20.dat',
                  'data21_30.dat', 'data31_40.dat', 'data41_50.dat',
                  'data51_60.dat', 'data61_70.dat', 'data71_80.dat',
                  'data81_90.dat', 'data91_100.dat', 'data101_110.dat',
@@ -532,9 +533,9 @@ def check_data_file_name():
                  'data441_450.dat', 'data451_460.dat', 'data461_470.dat',
                  'data471_480.dat', 'data481_490.dat', 'data491_500.dat',
                  'data501_510.dat', 'data511_520.dat', 'data521_530.dat',
-                 'data531_540.dat', 'data541_550.dat', 'data561_570.dat',
-                 'data571_580.dat', 'data581_590.dat', 'data591_600.dat',
-                 'data601_610.dat']:
+                 'data531_540.dat', 'data541_550.dat', 'data551_560.dat',
+                 'data561_570.dat', 'data571_580.dat', 'data581_590.dat',
+                 'data591_600.dat', 'data601_610.dat']:
             continue
         else:
             raise Exception('Error.')
@@ -599,6 +600,35 @@ def test_truncate():
         return 'Success.'
 
 
+def test_vacuum():
+    """
+    add 12 non-identical records
+    delete first 6 rows
+    perform vaccum
+    check if 2th row represent inserted 8th
+    check that we have only one data file
+    """
+    try:
+        db_object = mdb.Database.open("testdb")
+        db_table = db_object.open_table("testtable")
+        for i in range(12):
+            db_table.insert({
+                "name": "blah_{0}".format(i+1),
+                "password": "something_{0}".format(i+1)
+            })
+        for i in range(6):
+            db_table.delete_row(i+1)
+        db_table.vacuum()
+        if db_table.current_row != 6:
+            return "Error"
+        if db_table.find_row(2)["d"]["password"] != "something_8":
+            return "Error"
+    except Exception:
+        return "Error"
+    else:
+        return 'Success.'
+
+
 # Clean up all the test data
 def remove_test_database_files():
     try:
@@ -612,31 +642,39 @@ def remove_test_database_files():
         return 'Failed to delete test data.'
 
 
-print("Testing")
+print("Testing started")
+print("Platform: {} so Micro Controller = {}".format(sys.platform, uC))
 print("------")
-assert test_database_open_exception() == "Success.", "Open database that doesn't exist: Error."
-assert test_database_creation() == "Success.", "Create database: Error."
-assert test_database_creation_exception() == "Success.", "Create database with same name: Error."
-assert test_table_open_exception() == "Success.", "Open table that doesn't exist: Error."
-assert test_table_creation() == "Success.", "Create table: Error."
-assert test_table_open() == "Success.", "Open table: Error."
-assert test_insert_row() == "Success.", "Insert row: Error."
-assert test_insert_multiple_rows() == "Success.", "Insert multiple rows: Error."
-assert test_update_row_exception_row() == "Success.", "Update row that doesn't exist: Error."
-assert test_update_row_exception_column() == "Success.", "Update row with column that doesn't exist: Error."
-assert test_update_row() == "Success.", "Update row: Error."
-assert test_update() == "Success.", "Update: Error."
-assert test_update_exception() == "Success.", "Update with query that doesn't match: Error."
-assert test_delete_row() == "Success.", "Delete row: Error."
-assert test_delete_row_exception() == "Success.", "Delete row exception: Error."
-assert test_find_row() == "Success.", "Find row: Error."
-assert test_find_row_exception() == "Success.", "Find row exception: Error."
-assert test_query() == "Success.", "Query exception: Error."
-assert test_find() == "Success.", "Find exception: Error."
-assert test_scan_no_query() == "Success.", "Scan without query: Error."
-assert test_scan_with_query() == "Success.", "Scan with query: Error."
-assert check_data_file_name() == "Success.", "Data row files: Error"
-assert test_truncate() == "Success.", "Truncate: Error."
+assert test_database_open_exception() == "Success.", \
+    "Error: Open database that doesn't exist"
+assert test_database_creation() == "Success.", "Error: Create database"
+assert test_database_creation_exception() == "Success.", \
+    "Error: Create database with same name"
+assert test_table_open_exception() == "Success.", \
+    "Error: Open table that doesn't exist"
+assert test_table_creation() == "Success.", "Error: Create table"
+assert test_table_open() == "Success.", "Error: Open table"
+assert test_insert_row() == "Success.", "Error: Insert row"
+assert test_insert_multiple_rows() == "Success.", "Error: Insert multiple rows"
+assert test_update_row_exception_row() == "Success.", \
+    "Error: Update row that doesn't exist"
+assert test_update_row_exception_column() == "Success.", \
+    "Error: Update row with column that doesn't exist"
+assert test_update_row() == "Success.", "Error: Update row"
+assert test_update() == "Success.", "Error: Update"
+assert test_update_exception() == "Success.", \
+    "Error: Update with query that doesn't match"
+assert test_delete_row() == "Success.", "Error: Delete row"
+assert test_delete_row_exception() == "Success.", "Error: Delete row exception"
+assert test_find_row() == "Success.", "Error: Find row"
+assert test_find_row_exception() == "Success.", "Error: Find row exception"
+assert test_query() == "Success.", "Error: Query exception"
+assert test_find() == "Success.", "Error: Find exception"
+assert test_scan_no_query() == "Success.", "Error: Scan without query"
+assert test_scan_with_query() == "Success.", "Error: Scan with query"
+assert check_data_file_name() == "Success.", "Error: Data row files"
+assert test_truncate() == "Success.", "Error: Truncate"
+assert test_vacuum() == "Success.", "Error: Vacuum"
 remove_test_database_files()
 print("------")
 print("All tests passed.")

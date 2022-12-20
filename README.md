@@ -13,7 +13,7 @@ or
 >>> upip.install("micropython-os.path”)
 ```
 
-Using on a :
+Usage instructions :
 
 ```
 import micropydatabase
@@ -26,22 +26,34 @@ Open an existing database:
 ```
 db_object = micropydatabase.Database.open("mydb")
 ```
-Create a new table (specifying column names):
+Create a new table (specifying column names [and types if you need it]):  
+*(Table column definition supported types are **str**, **int** and **bool**. Default is **str**.)*
 ```
 db_object = micropydatabase.Database.open("mydb")
-db_table = db_object.create_table("mytable", ["name", "password"])
+db_object.create_table("mytable", ["name", "password"])
+db_object.create_table("mytable", {
+        "name":str, 
+        "age":int, 
+        "isMember":bool
+})
 ```
 Insert data into table:
 ```
 db_object = micropydatabase.Database.open("mydb")
 db_table = db_object.open_table("mytable")
-db_table.insert({"name": "lucy", "password": "coolpassword"})
+db_table.insert({"name": "lucy", "password": "coolpassword"})   # as dict
+db_table.insert(["Rose", "MySecret"])                           # as list
 ```
 Multi-insert data into table:
 ```
 db_object = micropydatabase.Database.open("mydb")
 db_table = db_object.open_table("mytable")
-db_table.insert([{"name": "john", "password": "apassword"}, {"name": "john", "password": "apassword"}, {"name": "bob", "password": "thispassword"}, {"name": "sally", "password": "anotherpassword"}])
+db_table.insert([
+    {"name": "john", "password": "apassword"}, 
+    {"name": "john", "password": "apassword"}, 
+    {"name": "bob", "password": "thispassword"}, 
+    {"name": "sally", "password": "anotherpassword"}
+])
 ```
 Find (returns first result):
 ```
@@ -59,7 +71,10 @@ Update Row (search query, updated row data):
 ```
 db_object = micropydatabase.Database.open("mydb")
 db_table = db_object.open_table("mytable")
-db_table.update({"name": "bob", "password": "thispassword"}, {"name": "george", "password": "somethingelse"})
+db_table.update(
+    {"name": "bob", "password": "thispassword"},        #find what
+    {"name": "george", "password": "somethingelse"}     # change with
+)
 ```
 Delete Row:
 ```
@@ -93,39 +108,4 @@ Vaccum Table (reorganize all content):
 db_object = micropydatabase.Database.open("mydb")
 db_table = db_object.open_table("mytable")
 db_table.vaccum()
-```
-
-
-Using on Mac:
-Create a *.py file like so:
-
-```
-from micropydatabase import *
-
-#Database examples:
-db_object = Database.create("mydb2")
-db_object = Database.open("mydb")
-
-#Table examples:
-db_table = db_object.create_table("mytable", ["name", "password"])
-db_table = db_object.open_table("mytable")
-db_table.truncate()
-
-#Insert examples:
-db_table.insert({"name": "nate", "password": "coolpassword"})
-db_table.insert([{"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}, {"name": "whothere", "password": "ohyeah"}])
-
-#Low-level operations using internal row_id:
-db_table.find_row(5)
-db_table.update_row(300, {'name': 'bob'})
-db_table.delete_row(445)
-db_table.query({"name": "bob"})
-f = db_table.scan()
-f.__next__()
-
-#High-level operations using queries:
-db_table.find({"name": "blah", "password": "something"})
-db_table.query({"name": "blah", "password": "something"})
-db_table.update({"name": "blah8", "password": "yeah8"}, {"name": "blah9", "password": "yeah9"})
-db_table.delete({"name": "blah9", "password": "yeah9"})
 ```

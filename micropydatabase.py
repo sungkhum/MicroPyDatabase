@@ -6,12 +6,16 @@ Database examples:
 db_object = Database.create("mydb")
 db_object = Database.open("mydb")
 Table examples:
-db_table = db_object.create_table("mytable", ["name", "password"])
+db_object.create_table("mytable", ["name", "password"])
+this case all fields will be string type. If you want to define columns
+precisely- pass dict of fields with types defined. Supported: str, int, bool
+db_object.create_table("mytable", {"name":str, "age":int, "isMember":bool})
 db_table = db_object.open_table("mytable")
 db_table.truncate()
 Insert examples:
-for x in range(550):
-   db_table.insert({"name": "nate", "password": "coolpassword"})
+db_table.insert({"name": "nate", "password": "coolpassword"})
+or you can use dict for fields:
+db_table.insert(["John", 37, True])
 Low-level operations using internal row_id:
 db_table.find_row(5)
 db_table.update_row(300, {'name': 'bob'})
@@ -104,11 +108,11 @@ class Database:
         else:
             raise Exception("Database {} does not exist".format(database))
 
-    def create_table(self, table: str, columns: list,
+    def create_table(self, table: str, columns: any,
                      rows_per_page: int = None,
                      max_rows: int = None):
         # Convert all column names to lowercase
-        columns = [element.lower() for element in columns]
+        # columns = [element.lower() for element in columns]  # logic moved to Table.create_table()
         if rows_per_page is None:
             rows_per_page = self.rows_per_page
         max_rows = max_rows if max_rows is not None else self.max_rows
@@ -148,7 +152,7 @@ class Table:
         # TODO: validate and self-heal to recover from data corruption
 
     @staticmethod
-    def create_table(database, table: str, columns: list,
+    def create_table(database, table: str, columns: any,
                      rows_per_page: int = None, max_rows: int = None):
         """
         Create a table in a database that already exists.
@@ -168,21 +172,34 @@ class Table:
             # column name variable.
             # columns.insert(0, "meta_id")
             # create the table json file and populate it.
+            data = {
+                "settings": {
+                    "rows_per_page": rows_per_page,
+                    "max_rows": max_rows,
+                },
+                "columns": {}
+            }
+            
+            # dictionary style columns declaration, all types default to str
+            if(isinstance(columns, list)):
+                for col in columns:
+                    data["columns"][col.lower()] = {"data_type": "str", "max_length": 10000}
+
+            # dictionary style columns declaration, together with types
+            elif(isinstance(columns, dict)):
+                for col in columns:
+                    if(columns[col].__name__ == "str"):
+                        data["columns"][col.lower()] = {"data_type": "str", "max_length": 10000}
+                    elif(columns[col].__name__ in ["int", "bool"]):
+                        data["columns"][col.lower()] = {"data_type": columns[col].__name__}
+                    else:
+                        raise Exception("Data type '{}' for column '{}' is not suported".format(
+                            columns[col].__name__, col))
+            else:
+                raise Exception("Columns definition is incorrect")
             os.mkdir(table_folder)
-            # current_row = 0
-            with open("{}/definition.json".format(table_folder), "w") as f:
-                data = {
-                    "settings": {
-                        "rows_per_page": rows_per_page,
-                        "max_rows": max_rows,
-                    },
-                    "columns": {}
-                }
-                for x in range(len(columns)):
-                    data["columns"][columns[x]] = {"data_type": "str",
-                                                   "max_length": 10000}
+            with open("{}/definition.json".format(table_folder), "w") as f:    
                 f.write(json.dumps(data))
-                # print("Table {} created succuessfully".format(table))
                 return Table(database, table, columns, rows_per_page, max_rows)
         else:
             raise Exception("Table {} already exists".format(table))
@@ -198,7 +215,7 @@ class Table:
             for file_name in os.listdir(path):
                 if file_name[-4:] in ['temp', 'vacu']:
                     raise Exception("Some temporary data page files are still"
-                                    " in your table")
+                                    " in your table. Delete temp and vacu files manually")
             return Table(database, table, definition['columns'],
                          definition['settings']['rows_per_page'],
                          definition['settings']['max_rows'])
@@ -216,22 +233,29 @@ class Table:
             "Current_row": self.__calculate_current_row()
         }
 
-    def insert(self, data: dict) -> bool:
+    def insert(self, data: any) -> bool:
         """
         Inserts new data in a table
         """
         # Check for multiple row insert and prepare for each
-        if isinstance(data, list):
+        if isinstance(data, list) and isinstance(data[0], dict):
             # i = 0
             total = len(data) - 1
             new_data = data
             # multi = True
             # inserted = 0
-            for x in range(len(new_data)):
-                if self.__scrub_data(new_data[x]):
-                    pass
-                else:
-                    raise Exception('Data is not formatted correctly')
+            if isinstance(data[0], dict):
+                for x in range(len(new_data)):
+                    if self.__scrub_data(new_data[x]):
+                        pass
+                    else:
+                        raise Exception('Data is not formatted correctly 1')
+            # elif isinstance(data[0], list):
+            #     for x in range(len(new_data)):
+            #         if self.__scrub_data(new_data):
+            #             pass
+            #         else:
+            #             raise Exception('Data is not formatted correctly 2')
 
             # while we still have data to insert
             while total > 0:
@@ -260,7 +284,7 @@ class Table:
                     int(self.current_row) + 1)
                 for x in range(len(first_data)):
                     self.current_row += 1
-                    first_data_string = "{0}{{\"d\": {1}, \"r\": {2}}}\n" \
+                    first_data_string = "{0}{{\"r\": {2}, \"d\": {1}}}\n" \
                         .format(first_data_string, json.dumps(first_data[x]),
                                 str(self.current_row))
                 if self.__multi_append_row(first_data_string, first_path):
@@ -280,7 +304,8 @@ class Table:
             return True
         # If not multi-insert
         else:
-            if self.__scrub_data(data):
+            data = self.__scrub_data(data)
+            if data:
                 self.current_row += 1
                 row_id = self.current_row
                 path = self.__data_file_for_row_id(row_id)
@@ -312,7 +337,7 @@ class Table:
                 row_id = found_row['r']
                 self.update_row(row_id, data)
 
-    def update_row(self, row_id: int, update_data):
+    def update_row(self, row_id: int, update_data: any):
         """
         Update data based on row_id.
         """
@@ -407,7 +432,7 @@ class Table:
         """
         return self.__return_query('find', queries)
 
-    def scan(self, queries: dict = None):
+    def scan(self, queries: any = None):
         """
         Iterate through the whole table and return data by line
         """
@@ -469,7 +494,7 @@ class Table:
             os.remove("{}/{}.vacu".format(self.path, f))
         return True
 
-    def __return_query(self, search_type: str, queries: dict = None) -> list:
+    def __return_query(self, search_type: str, queries: any = None) -> list:
         """
         Helper function to process a query and return the result.
         """
@@ -783,7 +808,7 @@ class Table:
                 file_row_id = int(file_row_id) + int(self.rows_per_page)
             return file_row_id
 
-    def __scrub_data(self, data: dict, fill_missing: bool = True):
+    def __scrub_data(self, data: any, fill_missing: bool = True):
         """
         Check to see if user data input contains valid column data for
         current table.
@@ -794,14 +819,36 @@ class Table:
         all_columns = list(self.columns.keys())
         result = {}
         column = None
+
+        # if received list of values - make a dict with fields
+        if(isinstance(data, list)):
+            ndata = {}
+            print(self.columns, data)
+            for k, v in zip(self.columns, data):
+                ndata[k]=v
+            data = ndata
+            del(ndata)
+        print(type(data), data)
         try:
             for column, value in data.items():
                 column = column.lower()
                 # column_definition = self.columns[column]
-                # TODO: validate type/length/etc
+                # validate type/length
+                if(self.columns[column]["data_type"] == "str" and isinstance(value, str)):
+                    if(len(value)>self.columns[column]["max_length"]):
+                        raise Exception("Max_length of {} exceeded for {} ".format(
+                            self.columns[column]["max_length"], column))
+                elif(self.columns[column]["data_type"] == "int" and isinstance(value, int)):
+                    pass
+                elif(self.columns[column]["data_type"] == "bool" and isinstance(value, bool)):
+                    pass
+                else:
+                    raise Exception("Data types mismath: Expected <class '{}'> but received {} for column '{}'".format(
+                        self.columns[column]["data_type"], type(value), column))
+
                 all_columns.remove(column)
                 result[column] = value
-        except KeyError:     # type: ignore
+        except KeyError:
             raise Exception("Column {} does not exist in {}".format(
                 column, self.name))
 

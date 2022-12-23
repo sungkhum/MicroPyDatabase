@@ -432,7 +432,7 @@ class Table:
         """
         return self.__return_query('find', queries)
 
-    def scan(self, queries: any = None):
+    def scan(self, queries: any = None, show_row: bool = False):
         """
         Iterate through the whole table and return data by line
         """
@@ -445,25 +445,21 @@ class Table:
         # (not reversed because we want smallest first).
         location = sorted(location, key=lambda x:
                           int(x.split('.')[0].split('_')[1]))
-        found = False
-        while True:
-            for f in location:
-                with open("{}/{}".format(self.path, f), 'r') as data:
-                    for line in data:
-                        current_data = json.loads(line)
-                        # If we are not searching for anything
-                        if not queries:
-                            yield current_data['d']
-                        else:
-                            found = False
-                            for query in queries:
-                                if current_data['d'][query] == queries[query]:
-                                    found = True
-                                else:
-                                    found = False
-                                    break
-                        if found:
-                            yield current_data['d']
+        for f in location:
+            with open("{}/{}".format(self.path, f), 'r') as data:
+                for line in data:
+                    current_data = json.loads(line)
+                    # If we are not searching for anything
+                    if not queries:
+                        if show_rows:
+                            current_data['d']["_row"] = current_data['r']
+                        yield current_data['d']
+                    else:
+                        for query in queries:
+                            if current_data['d'][query] == queries[query]:
+                                yield current_data['d']
+                            else:
+                                break
 
     def vacuum(self) -> bool:
         """

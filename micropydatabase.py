@@ -343,7 +343,7 @@ class Table:
         """
         # Check to make sure all the column names given by user
         # match the column names in the table.
-        data = self.__scrub_data(update_data)
+        data = self.__scrub_data(update_data, False)
         path = self.__data_file_for_row_id(row_id)
         if data:
             # Create a temp data file with the updated row data.
@@ -398,13 +398,11 @@ class Table:
         # Calculate what line in the file the row_id will be found at
         looking_for_line = self.__row_id_in_file(row_id)
 
-        # Initiate line-counter
-        current_line = 1
+        # Prevous method of counting lines is not reliable
         with open(self.__data_file_for_row_id(row_id), 'r') as f:
-            for line in f:
+            for current_line, line in enumerate(f):
                 if current_line == looking_for_line:
                     return json.loads(line)
-                current_line += 1
 
         raise Exception("Could not find row_id {}".format(row_id))
 
@@ -437,7 +435,7 @@ class Table:
         Iterate through the whole table and return data by line
         """
         if queries:
-            queries = self.__scrub_data(queries)
+            queries = self.__scrub_data(queries, False)
         location = os.listdir(self.path)
         # Remove non-data files from our list of dirs.
         location = [element for element in location if 'data' in element]
@@ -448,18 +446,19 @@ class Table:
         for f in location:
             with open("{}/{}".format(self.path, f), 'r') as data:
                 for line in data:
-                    current_data = json.loads(line)
-                    # If we are not searching for anything
-                    if not queries:
-                        if show_rows:
-                            current_data['d']["_row"] = current_data['r']
-                        yield current_data['d']
-                    else:
-                        for query in queries:
-                            if current_data['d'][query] == queries[query]:
-                                yield current_data['d']
-                            else:
-                                break
+                    if line != "\n":    # empty lines fail on json.loads()
+                        current_data = json.loads(line)
+                        # If we are not searching for anything
+                        if not queries:
+                            if show_row:
+                                current_data['d']["_row"] = current_data['r']
+                            yield current_data['d']
+                        else:
+                            for query in queries:
+                                if current_data['d'][query] == queries[query]:
+                                    yield current_data['d']
+                                else:
+                                    break
 
     def vacuum(self) -> bool:
         """
@@ -545,14 +544,12 @@ class Table:
         """
         Checks to make sure the previous update or delete was successful.
         """
-        # Initiate line-counter
-        current_line = 1
         # Calculate what line will have the row we are looking for.
         looking_for_line = self.__row_id_in_file(list(data)[0])
         row_id = list(data)[0]
         # open file at path
         with open(page, 'r') as f:
-            for line in f:
+            for current_line, line in enumerate(f):
                 if current_line == looking_for_line:
                     if method == "update":
                         json_line = json.loads(line)
@@ -562,7 +559,6 @@ class Table:
                     elif method == "delete":
                         if line == "\n":
                             return True
-                current_line += 1
         # There was a problem writing, so return false
         return False
 
@@ -712,67 +708,40 @@ class Table:
                             "does not exist".format(action))
 
         temp_path = "{}.temp".format(path)
-        wrote_to_file = False
         current_data = ''
-        current_line = 1
-        file_row_offset = ''
-        # Calculate the row offset for current data page file
-        for number in path.split('/')[-1][4:]:
-            if number in ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']:
-                file_row_offset = "{}{}".format(file_row_offset, number)
-            else:
-                break
-        file_row_offset = int(file_row_offset) - 1
+        row_id = next(iter(update_data))
         # Open the master data page file
         with open(path, 'r') as input_file:
             # Create a temporary data page file
             with open(temp_path, 'w') as output:
-                for line in input_file:
-                    current_row_id = current_line + file_row_offset
-                    # If we are at the row we need to modify
-                    if current_row_id in update_data:
-                        # If we are deleting a row:
-                        if action == 'delete':
-                            output.write('\n')
-                            wrote_to_file = True
-                        # If we are updating a row:
-                        else:
-                            current_data = json.loads(line)
-                            if current_data['r'] == current_row_id:
-                                # Find a match for the column name the user
-                                # wants to update with new data.
-                                for x in current_data['d']:
-                                    for y in update_data[current_row_id]:
-                                        # If the column the user specified
-                                        # equals the column in the current data
-                                        if y == x:
-                                            # Then update the data with new
-                                            # user input
-                                            current_data['d'][x] = update_data[
-                                                current_row_id][y]
-                                # and write to temp file
-                                output.write(json.dumps(current_data))
-                                output.write('\n')
-                                wrote_to_file = True
+                for line_num, line in enumerate(input_file):
+                    if line != "\n":
+                        current_data = json.loads(line)
+                        # If this is our line
+                        if current_data["r"] == row_id:
+                            # Write the modified line to the file
+                            if action == 'delete':
+                                # output.write('\n')
+                                pass
+                            # If we are updating a row:
                             else:
-                                raise Exception("Woah we thought {} was row_id"
-                                                " {} and almost stomped the "
-                                                "wrong row's data!".format(
-                                                    line, current_row_id))
-                    # Else we are not at the row we are updating, so just copy
-                    # the previous data to the temp file.
-                    else:
-                        output.write(line)
-                    current_line += 1
-        # If we performed an update, check to make sure we actually wrote
-        # the update to the temp file
-        if wrote_to_file:
-            if self.__check_write_success(update_data, temp_path, action):
-                os.remove(path)
-                os.rename(temp_path, path)
-                return True
-            else:
-                return False
+                                if current_data['r'] == row_id:
+                                    current_data['d'].update(update_data[row_id])
+                                    output.write(json.dumps(current_data))
+                                    output.write('\n')
+                                else:
+                                    raise Exception("Woah we thought {} was row_id"
+                                                        " {} and almost stomped the "
+                                                        "wrong row's data!".format(
+                                                            line, line_num))
+                        # Otherwise, write the line to the file as-is, skipping empty lines
+                        else:
+                            output.write(line)
+        # imposible to check as we have ommited empty lines
+        os.remove(path)
+        os.rename(temp_path, path)
+        return True
+
 
     def __data_file_for_row_id(self, row_id: int) -> str:
         """
@@ -799,10 +768,12 @@ class Table:
         if row_id == 0:
             return 0
         else:
-            file_row_id = int(row_id) % int(self.rows_per_page)
-            if file_row_id == 0:
-                file_row_id = int(file_row_id) + int(self.rows_per_page)
-            return file_row_id
+            with open(self.__data_file_for_row_id(row_id), 'r') as f:
+                for line_num, line in enumerate(f):
+                    if line != "\n":
+                        if json.loads(line)["r"] == row_id:
+                            return line_num
+        return False
 
     def __scrub_data(self, data: any, fill_missing: bool = True):
         """
@@ -819,12 +790,10 @@ class Table:
         # if received list of values - make a dict with fields
         if(isinstance(data, list)):
             ndata = {}
-            print(self.columns, data)
             for k, v in zip(self.columns, data):
                 ndata[k]=v
             data = ndata
             del(ndata)
-        print(type(data), data)
         try:
             for column, value in data.items():
                 column = column.lower()

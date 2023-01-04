@@ -40,7 +40,7 @@ class OutOfMemoryError(Exception):
 
 def file_exists(path):
     try:
-        f = open(path, "r")
+        f = open(path, 'r') 
         f.close()
         return True
     except OSError:
@@ -49,11 +49,13 @@ def file_exists(path):
 
 def dir_exists(path):
     try:
-        f = os.listdir(path)
-        if f != []:
-            return True
-        else:
-            return False
+        # no reliable, if EMPTY directory exists function return false
+        # f = os.listdir(path)
+        # if f != []:
+        #     return True
+        # else:
+        #     return False
+        return os.stat(path)[0] & 0o170000 == 0o040000
     except OSError:
         return False
 
@@ -81,11 +83,11 @@ class Database:
             os.mkdir(database)
             # If database doesn't exist, create the directory structure and the
             # Schema json file with default values.
-            with open("{}/schema.json".format(database), "w") as f:
+            with open("{}/schema.json".format(database), 'w') as f:
                 data = {
-                    "max_rows": max_rows,
-                    "storage_format_version": version,
-                    "rows_per_page": rows_per_page
+                    'max_rows': max_rows,
+                    'storage_format_version': version,
+                    'rows_per_page': rows_per_page
                 }
                 f.write(json.dumps(data))
                 # print("Database {} created successfully".format(database))
@@ -96,7 +98,7 @@ class Database:
     @staticmethod
     def open(database: str):
         # Check if database exists.
-        schema_path = "{}/schema.json".format(database)
+        schema_path = '{}/schema.json'.format(database)
         if file_exists(schema_path):
             with open(schema_path) as json_file:
                 data = json.load(json_file)
@@ -146,7 +148,7 @@ class Table:
         self.columns = columns
         self.rows_per_page = rows_per_page
         self.max_rows = max_rows
-        self.path = "{}/{}".format(database.path, table)
+        self.path = '{}/{}'.format(database.path, table)
         self.current_row = self.__calculate_current_row()
 
         # TODO: validate and self-heal to recover from data corruption
@@ -173,32 +175,32 @@ class Table:
             # columns.insert(0, "meta_id")
             # create the table json file and populate it.
             data = {
-                "settings": {
-                    "rows_per_page": rows_per_page,
-                    "max_rows": max_rows,
+                'settings': {
+                    'rows_per_page': rows_per_page,
+                    'max_rows': max_rows,
                 },
-                "columns": {}
+                'columns': {}
             }
             
             # dictionary style columns declaration, all types default to str
             if(isinstance(columns, list)):
                 for col in columns:
-                    data["columns"][col.lower()] = {"data_type": "str", "max_length": 10000}
+                    data['columns'][col.lower()] = {'data_type': 'str', 'max_length': 10000}
 
             # dictionary style columns declaration, together with types
             elif(isinstance(columns, dict)):
                 for col in columns:
-                    if(columns[col].__name__ == "str"):
-                        data["columns"][col.lower()] = {"data_type": "str", "max_length": 10000}
+                    if(columns[col].__name__ == 'str'):
+                        data['columns'][col.lower()] = {'data_type': 'str', 'max_length': 10000}
                     elif(columns[col].__name__ in ["int", "bool"]):
-                        data["columns"][col.lower()] = {"data_type": columns[col].__name__}
+                        data['columns'][col.lower()] = {'data_type': columns[col].__name__}
                     else:
                         raise Exception("Data type '{}' for column '{}' is not suported".format(
                             columns[col].__name__, col))
             else:
                 raise Exception("Columns definition is incorrect")
             os.mkdir(table_folder)
-            with open("{}/definition.json".format(table_folder), "w") as f:    
+            with open('{}/definition.json'.format(table_folder), 'w') as f:    
                 f.write(json.dumps(data))
                 return Table(database, table, columns, rows_per_page, max_rows)
         else:
@@ -206,9 +208,9 @@ class Table:
 
     @staticmethod
     def open_table(database, table: str):
-        path = "{}/{}".format(database.path, table)
+        path = '{}/{}'.format(database.path, table)
         if dir_exists(path):
-            with open("{}/definition.json".format(path)) as json_file:
+            with open('{}/definition.json'.format(path)) as json_file:
                 definition = json.load(json_file)
             # Check to make sure there are not any temporary files left over
             # from previous session.
@@ -226,11 +228,16 @@ class Table:
     def stats(self) -> dict:
         with open("{}/definition.json".format(self.path)) as json_file:
             definition = json.load(json_file)
+            table_size = 0
+            for entry in os.ilistdir(self.path):
+                if not entry[0] == 'definition.json':
+                    table_size +=entry[3]
         return {
-            "Settings": definition["settings"],
-            "Columns": definition["columns"],
-            "Pages_Count": len(os.listdir(self.path)) - 1,
-            "Current_row": self.__calculate_current_row()
+            'Settings': definition['settings'],
+            'Columns': definition['columns'],
+            'Pages_Count': len(os.listdir(self.path)) - 1,
+            'Current_row': self.__calculate_current_row(),
+            'Data_Size' : table_size
         }
 
     def insert(self, data: any) -> bool:
@@ -249,13 +256,7 @@ class Table:
                     if self.__scrub_data(new_data[x]):
                         pass
                     else:
-                        raise Exception('Data is not formatted correctly 1')
-            # elif isinstance(data[0], list):
-            #     for x in range(len(new_data)):
-            #         if self.__scrub_data(new_data):
-            #             pass
-            #         else:
-            #             raise Exception('Data is not formatted correctly 2')
+                        raise Exception("Data is not formatted correctly")
 
             # while we still have data to insert
             while total > 0:
@@ -300,7 +301,6 @@ class Table:
                     raise Exception("There was a problem inserting "
                                     "multiple rows")
                 total -= insert_number
-            # print("{} rows have been added".format(static_total))
             return True
         # If not multi-insert
         else:
@@ -388,7 +388,7 @@ class Table:
         """
         for file_name in os.listdir(self.path):
             if file_name[0:4] == 'data':
-                os.remove("{}/{}".format(self.path, file_name))
+                os.remove('{}/{}'.format(self.path, file_name))
         self.current_row = 0
 
     def find_row(self, row_id: int):
@@ -451,7 +451,7 @@ class Table:
                         # If we are not searching for anything
                         if not queries:
                             if show_row:
-                                current_data['d']["_row"] = current_data['r']
+                                current_data['d']['_row'] = current_data['r']
                             yield current_data['d']
                         else:
                             for query in queries:
@@ -474,19 +474,19 @@ class Table:
                           key=lambda x: int(x.split('.')[0].split('_')[1]),
                           reverse=False)
         for f in location:
-            os.rename("{}/{}".format(self.path, f),
-                      "{}/{}.vacu".format(self.path, f))
+            os.rename('{}/{}'.format(self.path, f),
+                      '{}/{}.vacu'.format(self.path, f))
         # Reset row id counter
         self.current_row = 0
 
         for f in location:
-            with open("{}/{}.vacu".format(self.path, f), "r") as data:
+            with open("{}/{}.vacu".format(self.path, f), 'r') as data:
                 for line in data:
                     if line != '\n':
                         current_data = json.loads(line)
                         self.insert(current_data['d'])
             # delete temporary files
-            os.remove("{}/{}.vacu".format(self.path, f))
+            os.remove('{}/{}.vacu'.format(self.path, f))
         return True
 
     def __return_query(self, search_type: str, queries: any = None) -> list:
@@ -573,7 +573,7 @@ class Table:
                     last_line = line
             if last_line:
                 json_line = json.loads(last_line)
-                if data["r"] == json_line["r"] and data["d"] == json_line["d"]:
+                if data['r'] == json_line['r'] and data['d'] == json_line['d']:
                     return True
         return False
 
@@ -595,7 +595,7 @@ class Table:
                 if line_counter > start_line:
                     # If we are, then add the line to our temp_data so we
                     # can compare it with the data insert
-                    temp_data = "{}{}".format(temp_data, line)
+                    temp_data = '{}{}'.format(temp_data, line)
                 line_counter += 1
         if temp_data == data:
             return True
@@ -610,11 +610,6 @@ class Table:
         # temp_current_row = self.current_row
         with open(page, 'a+') as f:
             f.write(data)
-        # if self.__check_write_success_insert(new_data, path):
-        #    return True
-        # else:
-        #    print('Data was corrupted at row: ' + temp_current_row)
-        #    return False
         return True
 
     def __append_row(self, data: dict, page: str) -> bool:
@@ -624,7 +619,7 @@ class Table:
         # Write the row to the data page file ('a' positions the stream at the
         # end of the file).
         with open(page, 'a+') as f:
-            f.write(json.dumps({"r": self.current_row, "d": data}))
+            f.write(json.dumps({'r': self.current_row, 'd': data}))
             f.write('\n')
         return True
         # if self.__check_write_success_insert(new_data, page):
@@ -718,7 +713,7 @@ class Table:
                     if line != "\n":
                         current_data = json.loads(line)
                         # If this is our line
-                        if current_data["r"] == row_id:
+                        if current_data['r'] == row_id:
                             # Write the modified line to the file
                             if action == 'delete':
                                 # output.write('\n')
@@ -757,7 +752,7 @@ class Table:
             first_number = (int(row_id) // int(self.rows_per_page)) *\
                 int(self.rows_per_page) + 1
             second_number = first_number + int(self.rows_per_page) - 1
-        return "{}/data{}_{}.dat".format(self.path, first_number,
+        return '{}/data{}_{}.dat'.format(self.path, first_number,
                                          second_number)
 
     def __row_id_in_file(self, row_id: int) -> int:
@@ -771,7 +766,7 @@ class Table:
             with open(self.__data_file_for_row_id(row_id), 'r') as f:
                 for line_num, line in enumerate(f):
                     if line != "\n":
-                        if json.loads(line)["r"] == row_id:
+                        if json.loads(line)['r'] == row_id:
                             return line_num
         return False
 
@@ -799,17 +794,17 @@ class Table:
                 column = column.lower()
                 # column_definition = self.columns[column]
                 # validate type/length
-                if(self.columns[column]["data_type"] == "str" and isinstance(value, str)):
+                if(self.columns[column]['data_type'] == "str" and isinstance(value, str)):
                     if(len(value)>self.columns[column]["max_length"]):
                         raise Exception("Max_length of {} exceeded for {} ".format(
-                            self.columns[column]["max_length"], column))
-                elif(self.columns[column]["data_type"] == "int" and isinstance(value, int)):
+                            self.columns[column]['max_length'], column))
+                elif(self.columns[column]['data_type'] == "int" and isinstance(value, int)):
                     pass
-                elif(self.columns[column]["data_type"] == "bool" and isinstance(value, bool)):
+                elif(self.columns[column]['data_type'] == "bool" and isinstance(value, bool)):
                     pass
                 else:
                     raise Exception("Data types mismath: Expected <class '{}'> but received {} for column '{}'".format(
-                        self.columns[column]["data_type"], type(value), column))
+                        self.columns[column]['data_type'], type(value), column))
 
                 all_columns.remove(column)
                 result[column] = value

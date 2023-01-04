@@ -246,17 +246,15 @@ class Table:
         """
         # Check for multiple row insert and prepare for each
         if isinstance(data, list) and isinstance(data[0], dict):
-            # i = 0
             total = len(data) - 1
             new_data = data
-            # multi = True
-            # inserted = 0
+
             if isinstance(data[0], dict):
                 for x in range(len(new_data)):
                     if self.__scrub_data(new_data[x]):
                         pass
                     else:
-                        raise Exception("Data is not formatted correctly")
+                        raise Exception("Data element {} is not formatted correctly".format(x))
 
             # while we still have data to insert
             while total > 0:
@@ -403,13 +401,13 @@ class Table:
 
         raise Exception("Could not find row_id {}".format(row_id))
 
-    def query(self, queries: dict):
+    def query(self, queries: dict, show_row: bool = False):
         """
         Search through the whole table and return all rows where column
         data matches searched for value.
         """
         final_result = []
-        results = self.__return_query('query', queries)
+        results = self.__return_query('query', queries, show_row)
         if results is None:
             return None
         else:
@@ -420,12 +418,12 @@ class Table:
                 final_result = results
         return final_result
 
-    def find(self, queries: dict):
+    def find(self, queries: dict, show_row: bool = False):
         """
         Search through the whole table and return first row where column
         data matches searched for value.
         """
-        return self.__return_query('find', queries)
+        return self.__return_query('find', queries, show_row)
 
     def scan(self, queries: any = None, show_row: bool = False):
         """
@@ -486,7 +484,7 @@ class Table:
             os.remove('{}/{}.vacu'.format(self.path, f))
         return True
 
-    def __return_query(self, search_type: str, queries: any = None) -> list:
+    def __return_query(self, search_type: str, queries: any = None, show_row: bool = False) -> list:
         """
         Helper function to process a query and return the result.
         """
@@ -526,6 +524,8 @@ class Table:
                                 if multiple_keys:
                                     break
                         if found:
+                            if show_row:
+                                cur_data['d']['_row'] = cur_data['r']
                             if search_type == 'find':
                                 return cur_data['d']
                             elif search_type == 'query':

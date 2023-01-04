@@ -260,7 +260,7 @@ class Table:
 
             # while we still have data to insert
             while total > 0:
-                current_line = self.__row_id_in_file(self.current_row)
+                current_line = self.__row_id_in_file(self.current_row)+1
                 # calculate how many lines we will insert on the first loop
                 insert_number = int(self.rows_per_page) - int(current_line)
                 if insert_number == 0:
@@ -285,21 +285,18 @@ class Table:
                     int(self.current_row) + 1)
                 for x in range(len(first_data)):
                     self.current_row += 1
-                    first_data_string = "{0}{{\"r\": {2}, \"d\": {1}}}\n" \
-                        .format(first_data_string, json.dumps(first_data[x]),
-                                str(self.current_row))
-                if self.__multi_append_row(first_data_string, first_path):
-                    if self.__is_multi_insert_success(first_data_string,
-                                                      first_path,
-                                                      number_rows_to_insert,
-                                                      current_line):
-                        pass
-                    else:
-                        raise Exception("There was a problem validating the "
-                                        "write during multiple row insert")
-                else:
+                    first_data_string = "{0}{{\"r\": {1}, \"d\": {2}}}\n" \
+                        .format(first_data_string,str(self.current_row),
+                            json.dumps(first_data[x]))
+                if not self.__multi_append_row(first_data_string, first_path):
                     raise Exception("There was a problem inserting "
                                     "multiple rows")
+                if not self.__is_multi_insert_success(first_data_string,
+                                                        first_path,
+                                                        number_rows_to_insert,
+                                                        current_line):
+                    raise Exception("There was a problem validating the "
+                                    "write during multiple row insert")
                 total -= insert_number
             return True
         # If not multi-insert

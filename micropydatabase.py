@@ -1,3 +1,10 @@
+'''
+- Added column types support (str, bool, int)
+- Changed some code to be more reliable. Example: with previous version the was issue: Create reccord and delete last record multiple times, and after finishing filling data file with 10 records, your last record will be on 10+ depending how many times you have deleted last record
+- More reliability fixes (dir_exists() function, find_row )
+- Added option to return '_row' as data column if needed at query(), find(), scan() as second optional boolen argument
+- Added table Drop()
+'''
 """Low-memory json-based databse for MicroPython.
 Data is stored in a folder structure in json for easy inspection.
 Indexing multiple columns is supported, and RAM usage is optimized
@@ -441,7 +448,7 @@ class Table:
         for f in location:
             with open("{}/{}".format(self.path, f), 'r') as data:
                 for line in data:
-                    if line != "\n":    # empty lines fail on json.loads()
+                    if line != "\n":    # empty lines fails to json.loads()
                         current_data = json.loads(line)
                         # If we are not searching for anything
                         if not queries:
@@ -451,6 +458,8 @@ class Table:
                         else:
                             for query in queries:
                                 if current_data['d'][query] == queries[query]:
+                                    if show_row:
+                                        current_data['d']['_row'] = current_data['r']
                                     yield current_data['d']
                                 else:
                                     break
@@ -473,7 +482,6 @@ class Table:
                       '{}/{}.vacu'.format(self.path, f))
         # Reset row id counter
         self.current_row = 0
-
         for f in location:
             with open("{}/{}.vacu".format(self.path, f), 'r') as data:
                 for line in data:
@@ -484,6 +492,12 @@ class Table:
             os.remove('{}/{}.vacu'.format(self.path, f))
         return True
 
+    def drop(self):
+        for filename in os.ilistdir(self.path):
+            location = "{}/{}".format(self.path, filename[0])
+            os.remove(location)
+        os.remove(self.path)
+    
     def __return_query(self, search_type: str, queries: any = None, show_row: bool = False) -> list:
         """
         Helper function to process a query and return the result.

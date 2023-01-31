@@ -56,12 +56,6 @@ def file_exists(path):
 
 def dir_exists(path):
     try:
-        # no reliable, if EMPTY directory exists function return false
-        # f = os.listdir(path)
-        # if f != []:
-        #     return True
-        # else:
-        #     return False
         return os.stat(path)[0] & 0o170000 == 0o040000
     except OSError:
         return False
@@ -328,7 +322,7 @@ class Table:
         """
         Update data based on matched query
         """
-        matched_queries = self.__return_query('query', query_conditions)
+        matched_queries = self.__return_query('update', query_conditions)
         if matched_queries is None:
             raise Exception("Query did not match any data")
         else:
@@ -362,7 +356,7 @@ class Table:
         """
         Delete row based on query search.
         """
-        matched_queries = self.__return_query('query', query_conditions)
+        matched_queries = self.__return_query('delete', query_conditions)
         if matched_queries is None:
             raise Exception("Query did not match any data")
         else:
@@ -399,7 +393,6 @@ class Table:
         """
         # Calculate what line in the file the row_id will be found at
         looking_for_line = self.__row_id_in_file(row_id)
-
         # Prevous method of counting lines is not reliable
         with open(self.__data_file_for_row_id(row_id), 'r') as f:
             for current_line, line in enumerate(f):
@@ -543,13 +536,16 @@ class Table:
                             if search_type == 'find':
                                 return cur_data['d']
                             elif search_type == 'query':
-                                result.append(cur_data)
-                    # else:
-                    #     break
+                                result.append(cur_data['d'])
+                            # for delete and update commands- only row id is needed
+                            elif search_type in ['update', 'delete']:
+                                result.append(cur_data['r'])
         if result:
             return result
         else:
             return None
+    
+
 
     def __check_write_success(self, data, page: str, method: str) -> bool:
         """
@@ -777,7 +773,7 @@ class Table:
             with open(self.__data_file_for_row_id(row_id), 'r') as f:
                 for line_num, line in enumerate(f):
                     if line != "\n":
-                        if json.loads(line)['r'] == row_id:
+                        if int(json.loads(line)['r']) == int(row_id):
                             return line_num
         return False
 

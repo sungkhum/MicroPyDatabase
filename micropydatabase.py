@@ -15,8 +15,8 @@ db_object = Database.open("mydb")
 Table examples:
 db_object.create_table("mytable", ["name", "password"])
 this case all fields will be string type. If you want to define columns
-precisely- pass dict of fields with types defined. Supported: str, int, bool
-db_object.create_table("mytable", {"name":str, "age":int, "isMember":bool})
+precisely- pass dict of fields with types defined. Supported: str, int, float, bool
+db_object.create_table("mytable", {"name":str, "age":int, "height":float, "isMember":bool})
 db_table = db_object.open_table("mytable")
 db_table.truncate()
 Insert examples:
@@ -193,7 +193,7 @@ class Table:
                 for col in columns:
                     if(columns[col].__name__ == 'str'):
                         data['columns'][col.lower()] = {'data_type': 'str', 'max_length': 10000}
-                    elif(columns[col].__name__ in ["int", "bool"]):
+                    elif(columns[col].__name__ in ["int", "float", "bool"]):
                         data['columns'][col.lower()] = {'data_type': columns[col].__name__}
                     else:
                         raise Exception("Data type '{}' for column '{}' is not suported".format(
@@ -394,12 +394,13 @@ class Table:
         # Calculate what line in the file the row_id will be found at
         looking_for_line = self.__row_id_in_file(row_id)
         # Prevous method of counting lines is not reliable
-        with open(self.__data_file_for_row_id(row_id), 'r') as f:
-            for current_line, line in enumerate(f):
-                if current_line == looking_for_line:
-                    return json.loads(line)
-
-        raise Exception("Could not find row_id {}".format(row_id))
+        if looking_for_line is not None:
+            with open(self.__data_file_for_row_id(row_id), 'r') as f:
+                for current_line, line in enumerate(f):
+                    if current_line == looking_for_line:
+                        return json.loads(line)
+        else:
+            raise Exception("Could not find row_id {}".format(row_id))
 
     def query(self, queries: dict, show_row: bool = False):
         """
@@ -547,42 +548,42 @@ class Table:
     
 
 
-    def __check_write_success(self, data, page: str, method: str) -> bool:
-        """
-        Checks to make sure the previous update or delete was successful.
-        """
-        # Calculate what line will have the row we are looking for.
-        looking_for_line = self.__row_id_in_file(list(data)[0])
-        row_id = list(data)[0]
-        # open file at path
-        with open(page, 'r') as f:
-            for current_line, line in enumerate(f):
-                if current_line == looking_for_line:
-                    if method == "update":
-                        json_line = json.loads(line)
-                        if json_line['r'] == row_id and \
-                                json_line['d'] == data[row_id]:
-                            return True
-                    elif method == "delete":
-                        if line == "\n":
-                            return True
-        # There was a problem writing, so return false
-        return False
+    # def __check_write_success(self, data, page: str, method: str) -> bool:
+    #     """
+    #     Checks to make sure the previous update or delete was successful.
+    #     """
+    #     # Calculate what line will have the row we are looking for.
+    #     looking_for_line = self.__row_id_in_file(list(data)[0])
+    #     row_id = list(data)[0]
+    #     # open file at path
+    #     with open(page, 'r') as f:
+    #         for current_line, line in enumerate(f):
+    #             if current_line == looking_for_line:
+    #                 if method == "update":
+    #                     json_line = json.loads(line)
+    #                     if json_line['r'] == row_id and \
+    #                             json_line['d'] == data[row_id]:
+    #                         return True
+    #                 elif method == "delete":
+    #                     if line == "\n":
+    #                         return True
+    #     # There was a problem writing, so return false
+    #     return False
 
-    def __check_write_success_insert(self, data: dict, page: str) -> bool:
-        """
-        Checks to make sure the previous insert was successful.
-        """
-        last_line = None
-        with open(page, 'r') as f:
-            for line in f:
-                if len(line) > 1:
-                    last_line = line
-            if last_line:
-                json_line = json.loads(last_line)
-                if data['r'] == json_line['r'] and data['d'] == json_line['d']:
-                    return True
-        return False
+    # def __check_write_success_insert(self, data: dict, page: str) -> bool:
+    #     """
+    #     Checks to make sure the previous insert was successful.
+    #     """
+    #     last_line = None
+    #     with open(page, 'r') as f:
+    #         for line in f:
+    #             if len(line) > 1:
+    #                 last_line = line
+    #         if last_line:
+    #             json_line = json.loads(last_line)
+    #             if data['r'] == json_line['r'] and data['d'] == json_line['d']:
+    #                 return True
+    #     return False
 
     def __is_multi_insert_success(self, data: dict, page: str,
                                   rows_added: int, start_line: int) -> bool:
@@ -775,7 +776,7 @@ class Table:
                     if line != "\n":
                         if int(json.loads(line)['r']) == int(row_id):
                             return line_num
-        return False
+        return None
 
     def __scrub_data(self, data: any, fill_missing: bool = True):
         """
@@ -806,6 +807,8 @@ class Table:
                         raise Exception("Max_length of {} exceeded for {} ".format(
                             self.columns[column]['max_length'], column))
                 elif(self.columns[column]['data_type'] == "int" and isinstance(value, int)):
+                    pass
+                elif(self.columns[column]['data_type'] == "float" and isinstance(value, float)):
                     pass
                 elif(self.columns[column]['data_type'] == "bool" and isinstance(value, bool)):
                     pass

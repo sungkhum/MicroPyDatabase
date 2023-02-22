@@ -1,10 +1,3 @@
-'''
-- Added column types support (str, bool, int)
-- Changed some code to be more reliable. Example: with previous version the was issue: Create reccord and delete last record multiple times, and after finishing filling data file with 10 records, your last record will be on 10+ depending how many times you have deleted last record
-- More reliability fixes (dir_exists() function, find_row )
-- Added option to return '_row' as data column if needed at query(), find(), scan() as second optional boolen argument
-- Added table Drop()
-'''
 """Low-memory json-based databse for MicroPython.
 Data is stored in a folder structure in json for easy inspection.
 Indexing multiple columns is supported, and RAM usage is optimized
@@ -23,6 +16,11 @@ Insert examples:
 db_table.insert({"name": "nate", "password": "coolpassword"})
 or you can use dict for fields:
 db_table.insert(["John", 37, True])
+Query data
+db_table.query({"name": "nate"})
+In case you need to get row_id with your data, pass second optional boolean parameter
+db_table.insert({"name": "nate", "password": "coolpassword"}, True)
+You'll get additional column '_row' with your data. Works with scan() find() and query()
 Low-level operations using internal row_id:
 db_table.find_row(5)
 db_table.update_row(300, {'name': 'bob'})

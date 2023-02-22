@@ -91,7 +91,6 @@ class Database:
                     'rows_per_page': rows_per_page
                 }
                 f.write(json.dumps(data))
-                # print("Database {} created successfully".format(database))
                 return Database(database, rows_per_page, max_rows, version)
         else:
             raise Exception("Database {} is already in use".format(database))
@@ -308,7 +307,6 @@ class Table:
                 # Check that we aren't at max rows:
                 if self.current_row < self.max_rows:
                     if self.__insert_modify_data_file(path, data):
-                        # print("Row {} has been added".format(row_id))
                         return True
                     else:
                         raise Exception("There was a problem inserting "
@@ -337,14 +335,17 @@ class Table:
         """
         Update data based on row_id.
         """
+        # get data from database and update with user provided
+        combined = self.find_row(row_id)["d"]
+        combined.update(update_data)
+
         # Check to make sure all the column names given by user
         # match the column names in the table.
-        data = self.__scrub_data(update_data, False)
+        data = self.__scrub_data(combined, False)
         path = self.__data_file_for_row_id(row_id)
         if data:
             # Create a temp data file with the updated row data.
             if self.__modify_data_file(path, {row_id: data}, 'update'):
-                # print("Row {} has been updated".format(row_id))
                 pass
             else:
                 raise Exception("There was a problem updating "
@@ -372,7 +373,6 @@ class Table:
         """
         if self.__modify_data_file(self.__data_file_for_row_id(row_id),
                                    {row_id: None}, 'delete'):
-            # print("Row {} has been deleted".format(row_id))
             pass
         else:
             raise Exception("There was a problem deleting "
@@ -410,11 +410,11 @@ class Table:
         final_result = []
         results = self.__return_query('query', queries, show_row)
         if results is None:
-            return None
+            return []
         else:
             if len(results) > 1:
                 for result in results:
-                    final_result.append(result['d'])
+                    final_result.append(result)
             else:
                 final_result = results
         return final_result

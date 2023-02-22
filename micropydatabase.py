@@ -325,10 +325,9 @@ class Table:
             raise Exception("Query did not match any data")
         else:
             # Loop through and update each row where the query returned true
-            for found_row in matched_queries:
+            for row_id in matched_queries:
                 # Check to make sure all the column names given by user match
                 # the column names in the table.
-                row_id = found_row['r']
                 self.update_row(row_id, data)
 
     def update_row(self, row_id: int, update_data: any):
